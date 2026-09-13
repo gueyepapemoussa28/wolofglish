@@ -15,10 +15,12 @@
 //     "prononciation": "<la même, en orthographe française, pour la voix>",
 //     "anglais": "<la phrase anglaise à retenir>",
 //     "nuance":  "<explication d'un réflexe wolof, ou chaîne vide>",
-//     "audioBase64": "<audio anglais>" | null
+//     "audioBase64": "<audio anglais, mp3>" | null,
+//     "audioWolof":  "<audio wolof, wav>" | null
 //   }
 
 const { demanderJson, MESSAGE_QUOTA } = require("../lib/gemini");
+const voixGemini = require("../lib/voix");
 
 // Repli historique : Hugging Face ne sert aucun modèle wolof, mais reste
 // utilisable si Gemini refuse l'audio tout en acceptant le texte.
@@ -282,9 +284,19 @@ module.exports = async function handler(req, res) {
       });
     }
 
-    // 3. Voix anglaise. Une panne de synthèse ne doit pas coûter la leçon :
-    //    le navigateur prendra le relais.
-    const resultatTts = await synthetiser(echange.anglais);
+    // 3. Les deux voix, en parallèle — aucune n'est indispensable, le
+    //    navigateur prend le relais de celle qui manque.
+    //    Le wolof passe par Gemini : aucun fournisseur ne l'annonce, mais sa
+    //    documentation ne mentionne pas davantage la compréhension du wolof,
+    //    qu'il maîtrise pourtant. On tente, l'oreille tranchera.
+    const [resultatTts, resultatWolof] = await Promise.all([
+      synthetiser(echange.anglais),
+      voixGemini.synthetiser(
+        echange.coach,
+        "Dis ceci en wolof, chaleureusement, comme un ami qui encourage",
+        process.env.GEMINI_VOIX || "Kore"
+      ),
+    ]);
 
     return res.status(200).json({
       wolof: echange.wolof,
@@ -293,6 +305,8 @@ module.exports = async function handler(req, res) {
       anglais: echange.anglais,
       nuance: echange.nuance,
       audioBase64: resultatTts.ok ? Buffer.from(resultatTts.audio).toString("base64") : null,
+      audioWolof: resultatWolof.ok ? resultatWolof.wavBase64 : null,
+      avertissementWolof: resultatWolof.ok ? null : String(resultatWolof.details).slice(0, 300),
       avertissementTts: resultatTts.ok ? null : String(resultatTts.details).slice(0, 700),
     });
   } catch (err) {

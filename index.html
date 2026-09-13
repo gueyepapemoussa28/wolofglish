@@ -625,8 +625,14 @@
       if ("speechSynthesis" in window && tour.coach) {
         var ecouter = creer("button", "ecouter", "🔊 Écouter en wolof");
         ecouter.addEventListener("click", function () {
-          // On lit la version réécrite pour une voix française, mais c'est
-          // bien le wolof correct qui reste affiché à l'écran.
+          if (tour.audioWolof) {
+            if (audioEnCours) audioEnCours.pause();
+            audioEnCours = new Audio("data:audio/wav;base64," + tour.audioWolof);
+            audioEnCours.play();
+            return;
+          }
+          // Sans voix Gemini, on lit la version réécrite pour une voix
+          // française ; l'écran garde le wolof correctement orthographié.
           parler(tour.prononciation || tour.coach, "fr-FR", 0.95);
         });
         dit.appendChild(ecouter);
@@ -751,15 +757,32 @@
       window.speechSynthesis.speak(enonce);
     }
 
-    // Le wolof n'est synthétisé par aucun fournisseur. L'orthographe wolof
-    // suivant de près les conventions françaises, une voix française en donne
-    // une approximation compréhensible. Réglable par l'interrupteur d'entête.
-    function parlerWolof(texte, ensuite) {
+    // Deux voix possibles pour le wolof, par ordre de préférence :
+    // celle de Gemini si elle a produit quelque chose, sinon une voix
+    // française lisant l'orthographe réécrite — approximation acceptable,
+    // le wolof s'écrivant selon des conventions proches du français.
+    function parlerWolof(tour, ensuite) {
       if (!voixActive) {
         if (ensuite) ensuite();
         return;
       }
-      parler(texte, "fr-FR", 0.95, ensuite);
+
+      if (tour.audioWolof) {
+        if (audioEnCours) audioEnCours.pause();
+        audioEnCours = new Audio("data:audio/wav;base64," + tour.audioWolof);
+        audioEnCours.addEventListener("ended", function () {
+          if (ensuite) ensuite();
+        });
+        var lecture = audioEnCours.play();
+        if (lecture && lecture.catch) {
+          lecture.catch(function () {
+            parler(tour.prononciation || tour.coach, "fr-FR", 0.95, ensuite);
+          });
+        }
+        return;
+      }
+
+      parler(tour.prononciation || tour.coach, "fr-FR", 0.95, ensuite);
     }
 
     // iOS n'autorise la synthèse qu'après un geste de l'utilisateur : on la
@@ -1030,6 +1053,7 @@
             role: "coach",
             coach: donnees.coach,
             prononciation: donnees.prononciation || donnees.coach,
+            audioWolof: donnees.audioWolof || null,
             anglais: donnees.anglais,
             nuance: donnees.nuance,
             audioBase64: donnees.audioBase64 || null
@@ -1047,7 +1071,7 @@
           // fait taire les deux ; les boutons de chaque message restent
           // toujours disponibles.
           if (voixActive) {
-            parlerWolof(tourCoach.prononciation || tourCoach.coach, function () {
+            parlerWolof(tourCoach, function () {
               if (tourCoach.anglais) jouerAnglais(tourCoach);
             });
           }
