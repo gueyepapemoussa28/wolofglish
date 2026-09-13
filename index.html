@@ -601,7 +601,94 @@
     }
 
     /* ====================================================================
-       8. APPEL DU BACKEND
+       8. CONVERSION EN WAV 16 kHz MONO
+       Hugging Face refuse le webm/mp4 produit par le navigateur : il lui
+       faut du wav, flac ou mp3. On décode donc l'enregistrement avec la
+       Web Audio API, puis on réécrit un vrai fichier WAV.
+       16 kHz mono est la fréquence native de Whisper : meilleure
+       reconnaissance ET fichier beaucoup plus léger à envoyer.
+       ==================================================================== */
+
+    var TAUX_CIBLE = 16000;
+
+    function encoderWav(echantillons, taux) {
+      var tailleDonnees = echantillons.length * 2; // 16 bits = 2 octets
+      var tampon = new ArrayBuffer(44 + tailleDonnees);
+      var vue = new DataView(tampon);
+
+      function ecrireTexte(position, texte) {
+        for (var i = 0; i < texte.length; i++) {
+          vue.setUint8(position + i, texte.charCodeAt(i));
+        }
+      }
+
+      ecrireTexte(0, "RIFF");
+      vue.setUint32(4, 36 + tailleDonnees, true);
+      ecrireTexte(8, "WAVE");
+      ecrireTexte(12, "fmt ");
+      vue.setUint32(16, 16, true);            // taille du bloc fmt
+      vue.setUint16(20, 1, true);             // format PCM
+      vue.setUint16(22, 1, true);             // 1 canal (mono)
+      vue.setUint32(24, taux, true);          // fréquence
+      vue.setUint32(28, taux * 2, true);      // octets par seconde
+      vue.setUint16(32, 2, true);             // alignement de bloc
+      vue.setUint16(34, 16, true);            // bits par échantillon
+      ecrireTexte(36, "data");
+      vue.setUint32(40, tailleDonnees, true);
+
+      var position = 44;
+      for (var j = 0; j < echantillons.length; j++) {
+        var valeur = Math.max(-1, Math.min(1, echantillons[j]));
+        vue.setInt16(position, valeur < 0 ? valeur * 0x8000 : valeur * 0x7fff, true);
+        position += 2;
+      }
+
+      return new Blob([tampon], { type: "audio/wav" });
+    }
+
+    function convertirEnWav(blob) {
+      var Contexte = window.AudioContext || window.webkitAudioContext;
+      var ContexteHorsEcran = window.OfflineAudioContext || window.webkitOfflineAudioContext;
+
+      if (!Contexte || !ContexteHorsEcran) {
+        return Promise.reject(new Error("Web Audio API indisponible"));
+      }
+
+      return blob.arrayBuffer().then(function (donneesBrutes) {
+        var contexte = new Contexte();
+
+        return new Promise(function (resoudre, rejeter) {
+          // Forme à callbacks : la seule comprise par tous les Safari.
+          contexte.decodeAudioData(donneesBrutes, resoudre, rejeter);
+        })
+          .then(function (audioDecode) {
+            if (contexte.close) { contexte.close(); }
+
+            var longueur = Math.max(1, Math.ceil(audioDecode.duration * TAUX_CIBLE));
+            var horsEcran = new ContexteHorsEcran(1, longueur, TAUX_CIBLE);
+            var source = horsEcran.createBufferSource();
+            source.buffer = audioDecode;
+            source.connect(horsEcran.destination);
+            source.start(0);
+
+            var rendu = horsEcran.startRendering();
+            if (rendu && typeof rendu.then === "function") {
+              return rendu; // navigateurs modernes
+            }
+            return new Promise(function (resoudre) {
+              horsEcran.oncomplete = function (evt) {
+                resoudre(evt.renderedBuffer);
+              };
+            });
+          })
+          .then(function (audioReechantillonne) {
+            return encoderWav(audioReechantillonne.getChannelData(0), TAUX_CIBLE);
+          });
+      });
+    }
+
+    /* ====================================================================
+       9. APPEL DU BACKEND
        ==================================================================== */
 
     function envoyerAuCoach(blob) {
@@ -611,16 +698,19 @@
         return;
       }
 
-      // On indique au backend le format réellement enregistré
-      // (webm sur Chrome/Android, mp4 sur Safari/iPhone).
-      var typeAudio = (blob.type || "audio/webm").split(";")[0];
-
-      blobVersBase64(blob)
-        .then(function (audioBase64) {
-          return fetch(API_URL, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ audioBase64: audioBase64, mimeType: typeAudio })
+      convertirEnWav(blob)
+        .catch(function () {
+          // Si la conversion échoue, on tente quand même l'envoi tel quel.
+          return blob;
+        })
+        .then(function (blobAEnvoyer) {
+          var typeAudio = (blobAEnvoyer.type || "audio/wav").split(";")[0];
+          return blobVersBase64(blobAEnvoyer).then(function (audioBase64) {
+            return fetch(API_URL, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ audioBase64: audioBase64, mimeType: typeAudio })
+            });
           });
         })
         .then(function (reponse) {
@@ -658,7 +748,7 @@
     }
 
     /* ====================================================================
-       9. AFFICHAGE DE LA LEÇON
+       10. AFFICHAGE DE LA LEÇON
        Format attendu du backend : "EN: <traduction> | WO: <explication>"
        ==================================================================== */
 
@@ -701,7 +791,7 @@
     }
 
     /* ====================================================================
-       10. LECTURE DE L'AUDIO ANGLAIS (MP3 renvoyé par ElevenLabs)
+       11. LECTURE DE L'AUDIO ANGLAIS (MP3 renvoyé par ElevenLabs)
        ==================================================================== */
 
     function preparerAudio(base64) {
@@ -731,7 +821,7 @@
     });
 
     /* ====================================================================
-       11. BOUTON MICRO : un appui = démarrer, un autre = envoyer
+       12. BOUTON MICRO : un appui = démarrer, un autre = envoyer
        ==================================================================== */
 
     micBtn.addEventListener("click", function () {
