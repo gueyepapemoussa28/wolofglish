@@ -53,16 +53,21 @@ async function listerModelesGemini() {
 }
 
 const PROMPT_AUDIO = `Tu es un professeur bienveillant qui aide un locuteur wolof à apprendre l'anglais.
-Écoute l'enregistrement : la personne parle en WOLOF (langue du Sénégal).
+
+Écoute l'enregistrement. La personne parle principalement en WOLOF (langue du
+Sénégal), souvent mêlé de mots français ou arabes — c'est normal, transcris ce
+que tu entends réellement, sans chercher à corriger sa façon de parler.
 
 Réponds UNIQUEMENT par un objet JSON valide, sans aucun texte autour :
 {
-  "wolof": "<ce que la personne a dit, transcrit en wolof>",
-  "anglais": "<la traduction de cette phrase en anglais>",
+  "wolof": "<ce que la personne a dit, transcrit fidèlement>",
+  "anglais": "<la traduction de cette phrase en anglais courant>",
   "explication": "<une phrase en wolof expliquant la construction anglaise>"
 }
 
-Si l'enregistrement est inaudible, vide ou incompréhensible, mets une chaîne vide dans "wolof".`;
+Fais de ton mieux même si l'audio est imparfait : une transcription approximative
+vaut mieux que rien. Ne renvoie une chaîne vide dans "wolof" que si
+l'enregistrement ne contient réellement aucune parole humaine.`;
 
 // Gemini sait écouter l'audio directement. Un seul appel remplace donc la
 // transcription Hugging Face puis la génération de la leçon — et surtout,
@@ -105,7 +110,11 @@ async function analyserAudioAvecGemini(audioBase64, mimeType) {
       }
 
       if (!analyse || !String(analyse.wolof || "").trim()) {
-        return { ok: false, audioVide: true };
+        return {
+          ok: false,
+          audioVide: true,
+          details: "Gemini n'a détecté aucune parole dans l'enregistrement.",
+        };
       }
 
       modelesEnCache = [modele, ...modeles.filter((m) => m !== modele)];
@@ -295,7 +304,7 @@ module.exports = async function handler(req, res) {
     if (analyse.ok) {
       transcriptionWolof = analyse.transcriptionWolof;
       reponseLLM = `EN: ${analyse.anglais} | WO: ${analyse.explication}`;
-    } else if (analyse.audioVide) {
+    } else if (analyse.audioVide && !process.env.HF_API_KEY) {
       return res.status(422).json({
         error: "Je n'ai pas compris",
         details: "L'enregistrement est inaudible ou vide. Réessaie en parlant plus près du micro.",
