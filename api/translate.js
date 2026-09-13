@@ -208,9 +208,9 @@ async function synthetiser(texte) {
   return {
     ok: false,
     details:
-      dernierDetail +
-      " || " + voixDisponibles.length + " voix essayée(s). Compte : " +
-      (inventaire.join(", ") || "aucune voix listée"),
+      voixDisponibles.length + " voix essayée(s). Compte : " +
+      (inventaire.join(", ") || "aucune voix listée") +
+      " || " + dernierDetail,
   };
 }
 
@@ -293,7 +293,7 @@ module.exports = async function handler(req, res) {
       anglais: echange.anglais,
       nuance: echange.nuance,
       audioBase64: resultatTts.ok ? Buffer.from(resultatTts.audio).toString("base64") : null,
-      avertissementTts: resultatTts.ok ? null : String(resultatTts.details).slice(0, 200),
+      avertissementTts: resultatTts.ok ? null : String(resultatTts.details).slice(0, 700),
     });
   } catch (err) {
     console.error("Erreur pipeline Wolofglish :", err);
