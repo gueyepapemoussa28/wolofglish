@@ -135,6 +135,7 @@ let voixEnCache = null;
 
 async function listerVoixCandidates() {
   const candidates = [];
+  const inventaire = [];
   if (voixEnCache) candidates.push(voixEnCache);
   if (process.env.ELEVENLABS_VOICE_ID) candidates.push(process.env.ELEVENLABS_VOICE_ID);
 
@@ -144,7 +145,10 @@ async function listerVoixCandidates() {
     });
     if (reponse.ok) {
       const donnees = await reponse.json();
-      const ordre = ["cloned", "generated", "professional", "premade"];
+      // Les voix créées ou clonées par le compte passent avant celles de la
+      // bibliothèque partagée, seules les premières étant utilisables en
+      // offre gratuite.
+      const ordre = ["generated", "cloned", "professional", "personal", "premade"];
       const rang = (categorie) => {
         const index = ordre.indexOf(categorie);
         return index === -1 ? ordre.length : index;
@@ -152,13 +156,21 @@ async function listerVoixCandidates() {
       (donnees.voices || [])
         .slice()
         .sort((a, b) => rang(a.category) - rang(b.category))
-        .forEach((voix) => candidates.push(voix.voice_id));
+        .forEach((voix) => {
+          candidates.push(voix.voice_id);
+          inventaire.push((voix.name || "?") + " [" + (voix.category || "sans catégorie") + "]");
+        });
+    } else {
+      inventaire.push("liste refusée : HTTP " + reponse.status);
     }
   } catch (err) {
-    // Liste inaccessible : on se contente des identifiants connus.
+    inventaire.push("liste inaccessible");
   }
 
-  return [...new Set(candidates.filter(Boolean))].slice(0, 6);
+  return {
+    voix: [...new Set(candidates.filter(Boolean))].slice(0, 12),
+    inventaire,
+  };
 }
 
 async function synthetiser(texte) {
@@ -166,7 +178,7 @@ async function synthetiser(texte) {
     return { ok: false, details: "Lecture confiée au navigateur." };
   }
 
-  const voixDisponibles = await listerVoixCandidates();
+  const { voix: voixDisponibles, inventaire } = await listerVoixCandidates();
   let dernierDetail = "Aucune voix disponible sur ce compte ElevenLabs.";
 
   for (const voixId of voixDisponibles) {
@@ -193,7 +205,13 @@ async function synthetiser(texte) {
     if (dernierDetail.indexOf("paid_plan_required") === -1) break;
   }
 
-  return { ok: false, details: dernierDetail };
+  return {
+    ok: false,
+    details:
+      dernierDetail +
+      " || " + voixDisponibles.length + " voix essayée(s). Compte : " +
+      (inventaire.join(", ") || "aucune voix listée"),
+  };
 }
 
 module.exports = async function handler(req, res) {
