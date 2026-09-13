@@ -398,6 +398,7 @@
     var autoStopTimeout = null;
     var debutEnregistrement = 0;
     var audioCourant = null;
+    var dernierTexteAnglais = "";
 
     /* ====================================================================
        4. PETITS UTILITAIRES D'AFFICHAGE
@@ -781,10 +782,14 @@
       setEtat("idle");
       dire("Voilà ta leçon 👏", "Appuie sur le micro pour continuer.");
 
+      dernierTexteAnglais = lecon.en;
+
       if (donnees.audioBase64) {
         preparerAudio(donnees.audioBase64);
       } else {
-        replayBtn.hidden = true;
+        // Pas d'audio du serveur : la voix intégrée au navigateur prend le relais.
+        audioCourant = null;
+        lireAvecNavigateur(lecon.en);
       }
 
       resultEl.scrollIntoView({ behavior: "smooth", block: "nearest" });
@@ -814,10 +819,36 @@
       }
     }
 
+    // Voix de secours intégrée au navigateur (gratuite, instantanée, hors ligne).
+    function lireAvecNavigateur(texte) {
+      if (!texte || !("speechSynthesis" in window)) {
+        replayBtn.hidden = true;
+        return;
+      }
+
+      var enonce = new SpeechSynthesisUtterance(texte);
+      enonce.lang = "en-US";
+      enonce.rate = 0.9; // un peu ralenti : c'est une leçon de prononciation
+
+      var voixAnglaises = (window.speechSynthesis.getVoices() || []).filter(function (voix) {
+        return /^en[-_]/i.test(voix.lang);
+      });
+      if (voixAnglaises.length > 0) {
+        enonce.voice = voixAnglaises[0];
+      }
+
+      window.speechSynthesis.cancel();
+      window.speechSynthesis.speak(enonce);
+      replayBtn.hidden = false;
+    }
+
     replayBtn.addEventListener("click", function () {
-      if (!audioCourant) return;
-      audioCourant.currentTime = 0;
-      audioCourant.play();
+      if (audioCourant) {
+        audioCourant.currentTime = 0;
+        audioCourant.play();
+      } else {
+        lireAvecNavigateur(dernierTexteAnglais);
+      }
     });
 
     /* ====================================================================

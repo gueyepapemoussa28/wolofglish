@@ -167,18 +167,16 @@ module.exports = async function handler(req, res) {
     const texteAnglais = reponseLLM.split("|")[0].replace(/^EN:\s*/i, "").trim();
 
     // 3. TTS : texte anglais -> audio (ElevenLabs)
+    // Une panne de synthèse vocale ne doit pas faire perdre la leçon :
+    // on renvoie le texte quoi qu'il arrive, et le navigateur lira
+    // lui-même la phrase anglaise si l'audio manque.
     const resultatTts = await synthetiser(texteAnglais);
-
-    if (!resultatTts.ok) {
-      return res.status(502).json({ error: "Échec TTS (ElevenLabs)", details: resultatTts.details });
-    }
-
-    const audioAnglaisBase64 = Buffer.from(resultatTts.audio).toString("base64");
 
     return res.status(200).json({
       transcriptionWolof,
       reponseLLM,
-      audioBase64: audioAnglaisBase64,
+      audioBase64: resultatTts.ok ? Buffer.from(resultatTts.audio).toString("base64") : null,
+      avertissementTts: resultatTts.ok ? null : String(resultatTts.details).slice(0, 300),
     });
   } catch (err) {
     console.error("Erreur pipeline Wolofglish :", err);
