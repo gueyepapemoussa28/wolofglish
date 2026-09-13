@@ -15,12 +15,11 @@
 //     "prononciation": "<la même, en orthographe française, pour la voix>",
 //     "anglais": "<la phrase anglaise à retenir>",
 //     "nuance":  "<explication d'un réflexe wolof, ou chaîne vide>",
-//     "audioBase64": "<audio anglais, mp3>" | null,
-//     "audioWolof":  "<audio wolof, wav>" | null
+//   Les voix sont fabriquées à part, par /api/voix : le texte ne doit pas
+//   attendre la synthèse, qui prend quelques secondes.
 //   }
 
 const { demanderJson, MESSAGE_QUOTA } = require("../lib/gemini");
-const voixGemini = require("../lib/voix");
 
 // Repli historique : Hugging Face ne sert aucun modèle wolof, mais reste
 // utilisable si Gemini refuse l'audio tout en acceptant le texte.
@@ -37,8 +36,8 @@ parler anglais. Tu lui parles en WOLOF — c'est sa langue, elle doit se sentir
 COMMENT TU TRAVAILLES
 - C'est une vraie conversation. Tu te souviens de ce qui a été dit plus tôt,
   tu y reviens, tu rebondis sur ce qu'elle raconte.
-- Tu réagis d'abord à son propos comme un ami le ferait. Tu n'es pas un
-  traducteur : la traduction vient après la réaction humaine.
+- Tu réagis d'abord à son propos comme un ami le ferait, en une phrase. Tu
+  n'es pas un traducteur : la réaction humaine précède la traduction.
 - À chaque tour, tu lui offres UNE phrase anglaise utile, née de ce qu'elle
   vient de dire. Une seule, pour qu'elle la retienne vraiment.
 - Tu termines presque toujours par une question en wolof, pour qu'elle
@@ -53,8 +52,11 @@ CE QUE TU CORRIGES
 - Tu ne corriges JAMAIS son wolof. C'est sa langue, elle la parle mieux que toi.
 
 TON STYLE
-- Des phrases courtes. On t'écoute, on ne te lit pas.
+- SOIS BREF : deux ou trois phrases, jamais plus. Ta réponse est lue à voix
+  haute, et un long discours lasse autant qu'il fait attendre. Un bon coach
+  dit peu et laisse parler son élève.
 - Pas de listes, pas de numérotation : tu parles, tu ne rédiges pas.
+- Ne redis pas ce que tu as déjà expliqué dans les tours précédents.
 - Le wolof tel qu'on le parle à Dakar, avec les mots français qui s'y mêlent
   naturellement. N'écris pas un wolof académique que personne n'emploie.
 
@@ -131,91 +133,6 @@ async function interrogerGemini(parts, historique) {
   return { ok: true, ...analyse };
 }
 
-// Les comptes ElevenLabs gratuits refusent les voix de bibliothèque : on essaie
-// les voix du compte une par une et on retient la première acceptée.
-let voixEnCache = null;
-
-async function listerVoixCandidates() {
-  const candidates = [];
-  const inventaire = [];
-  if (voixEnCache) candidates.push(voixEnCache);
-  if (process.env.ELEVENLABS_VOICE_ID) candidates.push(process.env.ELEVENLABS_VOICE_ID);
-
-  try {
-    const reponse = await fetch("https://api.elevenlabs.io/v1/voices", {
-      headers: { "xi-api-key": process.env.ELEVENLABS_API_KEY },
-    });
-    if (reponse.ok) {
-      const donnees = await reponse.json();
-      // Les voix créées ou clonées par le compte passent avant celles de la
-      // bibliothèque partagée, seules les premières étant utilisables en
-      // offre gratuite.
-      const ordre = ["generated", "cloned", "professional", "personal", "premade"];
-      const rang = (categorie) => {
-        const index = ordre.indexOf(categorie);
-        return index === -1 ? ordre.length : index;
-      };
-      (donnees.voices || [])
-        .slice()
-        .sort((a, b) => rang(a.category) - rang(b.category))
-        .forEach((voix) => {
-          candidates.push(voix.voice_id);
-          inventaire.push((voix.name || "?") + " [" + (voix.category || "sans catégorie") + "]");
-        });
-    } else {
-      inventaire.push("liste refusée : HTTP " + reponse.status);
-    }
-  } catch (err) {
-    inventaire.push("liste inaccessible");
-  }
-
-  return {
-    voix: [...new Set(candidates.filter(Boolean))].slice(0, 12),
-    inventaire,
-  };
-}
-
-async function synthetiser(texte) {
-  if (!process.env.ELEVENLABS_API_KEY || !texte) {
-    return { ok: false, details: "Lecture confiée au navigateur." };
-  }
-
-  const { voix: voixDisponibles, inventaire } = await listerVoixCandidates();
-  let dernierDetail = "Aucune voix disponible sur ce compte ElevenLabs.";
-
-  for (const voixId of voixDisponibles) {
-    const reponse = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voixId}`, {
-      method: "POST",
-      headers: {
-        "xi-api-key": process.env.ELEVENLABS_API_KEY,
-        "Content-Type": "application/json",
-        Accept: "audio/mpeg",
-      },
-      body: JSON.stringify({ text: texte, model_id: "eleven_multilingual_v2" }),
-    });
-
-    if (reponse.ok) {
-      voixEnCache = voixId;
-      return { ok: true, audio: await reponse.arrayBuffer() };
-    }
-
-    dernierDetail = await reponse.text();
-    if (voixEnCache === voixId) voixEnCache = null;
-
-    // Voix réservée aux offres payantes : la suivante passera peut-être.
-    // Toute autre erreur ne se règle pas en changeant de voix.
-    if (dernierDetail.indexOf("paid_plan_required") === -1) break;
-  }
-
-  return {
-    ok: false,
-    details:
-      voixDisponibles.length + " voix essayée(s). Compte : " +
-      (inventaire.join(", ") || "aucune voix listée") +
-      " || " + dernierDetail,
-  };
-}
-
 module.exports = async function handler(req, res) {
   if (req.method !== "POST") {
     return res.status(405).json({ error: "Méthode non autorisée, utilise POST." });
@@ -284,30 +201,12 @@ module.exports = async function handler(req, res) {
       });
     }
 
-    // 3. Les deux voix, en parallèle — aucune n'est indispensable, le
-    //    navigateur prend le relais de celle qui manque.
-    //    Le wolof passe par Gemini : aucun fournisseur ne l'annonce, mais sa
-    //    documentation ne mentionne pas davantage la compréhension du wolof,
-    //    qu'il maîtrise pourtant. On tente, l'oreille tranchera.
-    const [resultatTts, resultatWolof] = await Promise.all([
-      synthetiser(echange.anglais),
-      voixGemini.synthetiser(
-        echange.coach,
-        "Dis ceci en wolof, chaleureusement, comme un ami qui encourage",
-        process.env.GEMINI_VOIX || "Kore"
-      ),
-    ]);
-
     return res.status(200).json({
       wolof: echange.wolof,
       coach: echange.coach,
       prononciation: echange.prononciation || echange.coach,
       anglais: echange.anglais,
       nuance: echange.nuance,
-      audioBase64: resultatTts.ok ? Buffer.from(resultatTts.audio).toString("base64") : null,
-      audioWolof: resultatWolof.ok ? resultatWolof.wavBase64 : null,
-      avertissementWolof: resultatWolof.ok ? null : String(resultatWolof.details).slice(0, 300),
-      avertissementTts: resultatTts.ok ? null : String(resultatTts.details).slice(0, 700),
     });
   } catch (err) {
     console.error("Erreur pipeline Wolofglish :", err);

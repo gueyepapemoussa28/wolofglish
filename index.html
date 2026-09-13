@@ -513,6 +513,7 @@
         : "";
     var API_URL = API_BASE + "/api/translate";
     var API_PRONONCIATION = API_BASE + "/api/prononciation";
+    var API_VOIX = API_BASE + "/api/voix";
 
     var MAX_DUREE_MS = 45000;   // arrêt automatique de l'enregistrement
     var TAUX_CIBLE = 16000;     // fréquence native des modèles de parole
@@ -546,13 +547,13 @@
     var arretAuto = null;
     var debut = 0;
     var conversation = charger();
-    var voixActive = chargerVoix();
+    var voixActive = chargerReglageVoix();
 
     /* ==================================================================
        4. MÉMOIRE DE LA CONVERSATION
        ================================================================== */
 
-    function chargerVoix() {
+    function chargerReglageVoix() {
       try {
         return localStorage.getItem("wolofglish.voix") !== "0";
       } catch (err) {
@@ -625,15 +626,7 @@
       if ("speechSynthesis" in window && tour.coach) {
         var ecouter = creer("button", "ecouter", "🔊 Écouter en wolof");
         ecouter.addEventListener("click", function () {
-          if (tour.audioWolof) {
-            if (audioEnCours) audioEnCours.pause();
-            audioEnCours = new Audio("data:audio/wav;base64," + tour.audioWolof);
-            audioEnCours.play();
-            return;
-          }
-          // Sans voix Gemini, on lit la version réécrite pour une voix
-          // française ; l'écran garde le wolof correctement orthographié.
-          parler(tour.prononciation || tour.coach, "fr-FR", 0.95);
+          direWolof(tour.coach, tour.prononciation);
         });
         dit.appendChild(ecouter);
       }
@@ -646,7 +639,7 @@
 
         var bouton = creer("button", null, "🔊 Écouter la prononciation");
         bouton.addEventListener("click", function () {
-          jouerAnglais(tour);
+          direAnglais(tour.anglais);
         });
         phrase.appendChild(bouton);
 
@@ -722,9 +715,49 @@
 
     /* ==================================================================
        6. LA VOIX
+       Le serveur fabrique les voix à part (/api/voix) : le texte s'affiche
+       sans attendre la synthèse. Si elle n'arrive pas, celle du navigateur
+       prend le relais — le coach n'est jamais muet.
        ================================================================== */
 
     var audioEnCours = null;
+
+    function jouerUrl(url, ensuite) {
+      if (audioEnCours) audioEnCours.pause();
+      audioEnCours = new Audio(url);
+
+      var suivi = false;
+      function poursuivre() {
+        if (suivi) return;
+        suivi = true;
+        if (ensuite) ensuite();
+      }
+      audioEnCours.addEventListener("ended", poursuivre);
+      audioEnCours.addEventListener("error", poursuivre);
+
+      var lecture = audioEnCours.play();
+      if (lecture && lecture.catch) lecture.catch(poursuivre);
+    }
+
+    // Demande la voix au serveur. Renvoie une URL lisible, ou null.
+    function chargerVoix(texte, langue) {
+      if (!texte) return Promise.resolve(null);
+
+      return fetch(API_VOIX, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ texte: texte, langue: langue })
+      })
+        .then(function (reponse) {
+          return reponse.ok ? reponse.blob() : null;
+        })
+        .then(function (blob) {
+          return blob && blob.size > 500 ? URL.createObjectURL(blob) : null;
+        })
+        .catch(function () {
+          return null; // le navigateur lira lui-même
+        });
+    }
 
     function parler(texte, langue, vitesse, ensuite) {
       if (!("speechSynthesis" in window) || !texte) {
@@ -742,8 +775,6 @@
       });
       if (voix.length > 0) enonce.voice = voix[0];
 
-      // On enchaîne à la fin, ou tout de suite si la synthèse échoue,
-      // pour que le wolof et l'anglais ne se coupent jamais la parole.
       var suivi = false;
       function poursuivre() {
         if (suivi) return;
@@ -757,32 +788,21 @@
       window.speechSynthesis.speak(enonce);
     }
 
-    // Deux voix possibles pour le wolof, par ordre de préférence :
-    // celle de Gemini si elle a produit quelque chose, sinon une voix
-    // française lisant l'orthographe réécrite — approximation acceptable,
-    // le wolof s'écrivant selon des conventions proches du français.
-    function parlerWolof(tour, ensuite) {
-      if (!voixActive) {
-        if (ensuite) ensuite();
-        return;
-      }
+    // Le wolof : voix de Gemini si elle arrive, sinon une voix française lisant
+    // l'orthographe réécrite — le wolof s'écrivant selon des conventions
+    // proches du français, l'approximation reste compréhensible.
+    function direWolof(texte, secours, ensuite, promesse) {
+      (promesse || chargerVoix(texte, "wolof")).then(function (url) {
+        if (url) jouerUrl(url, ensuite);
+        else parler(secours || texte, "fr-FR", 0.95, ensuite);
+      });
+    }
 
-      if (tour.audioWolof) {
-        if (audioEnCours) audioEnCours.pause();
-        audioEnCours = new Audio("data:audio/wav;base64," + tour.audioWolof);
-        audioEnCours.addEventListener("ended", function () {
-          if (ensuite) ensuite();
-        });
-        var lecture = audioEnCours.play();
-        if (lecture && lecture.catch) {
-          lecture.catch(function () {
-            parler(tour.prononciation || tour.coach, "fr-FR", 0.95, ensuite);
-          });
-        }
-        return;
-      }
-
-      parler(tour.prononciation || tour.coach, "fr-FR", 0.95, ensuite);
+    function direAnglais(texte, ensuite, promesse) {
+      (promesse || chargerVoix(texte, "anglais")).then(function (url) {
+        if (url) jouerUrl(url, ensuite);
+        else parler(texte, "en-US", 0.9, ensuite);
+      });
     }
 
     // iOS n'autorise la synthèse qu'après un geste de l'utilisateur : on la
@@ -796,25 +816,8 @@
         vide.volume = 0;
         window.speechSynthesis.speak(vide);
       } catch (err) {
-        // Sans importance : la voix se contentera du bouton manuel.
+        // Sans importance : les boutons d'écoute restent disponibles.
       }
-    }
-
-    function jouerAnglais(tour) {
-      if (window.speechSynthesis) window.speechSynthesis.cancel();
-
-      if (tour.audioBase64) {
-        if (audioEnCours) audioEnCours.pause();
-        audioEnCours = new Audio("data:audio/mpeg;base64," + tour.audioBase64);
-        var lecture = audioEnCours.play();
-        if (lecture && lecture.catch) {
-          lecture.catch(function () {
-            parler(tour.anglais, "en-US", 0.9);
-          });
-        }
-        return;
-      }
-      parler(tour.anglais, "en-US", 0.9);
     }
 
     /* ==================================================================
@@ -1053,10 +1056,8 @@
             role: "coach",
             coach: donnees.coach,
             prononciation: donnees.prononciation || donnees.coach,
-            audioWolof: donnees.audioWolof || null,
             anglais: donnees.anglais,
-            nuance: donnees.nuance,
-            audioBase64: donnees.audioBase64 || null
+            nuance: donnees.nuance
           };
           conversation.push(tourCoach);
           afficherCoach(tourCoach);
@@ -1066,14 +1067,18 @@
           dire("Wax ma ci wolof");
           descendre();
 
-          // Le coach répond à voix haute : son wolof d'abord, puis la
-          // phrase anglaise, l'une après l'autre. L'interrupteur d'entête
-          // fait taire les deux ; les boutons de chaque message restent
-          // toujours disponibles.
+          // Le coach répond à voix haute. Les deux voix sont demandées
+          // en même temps et jouées l'une après l'autre : l'anglaise est
+          // déjà prête quand le wolof se termine.
           if (voixActive) {
-            parlerWolof(tourCoach, function () {
-              if (tourCoach.anglais) jouerAnglais(tourCoach);
-            });
+            var vWolof = chargerVoix(tourCoach.coach, "wolof");
+            var vAnglais = tourCoach.anglais
+              ? chargerVoix(tourCoach.anglais, "anglais")
+              : null;
+
+            direWolof(tourCoach.coach, tourCoach.prononciation, function () {
+              if (tourCoach.anglais) direAnglais(tourCoach.anglais, null, vAnglais);
+            }, vWolof);
           }
         })
         .catch(function (err) {
@@ -1120,7 +1125,7 @@
         if ("speechSynthesis" in window) {
           var ecouter = creer("button", "ecouter", "🔊 Écouter le conseil");
           ecouter.addEventListener("click", function () {
-            parler(essai.prononciation || essai.retour, "fr-FR", 0.95);
+            direWolof(essai.retour, essai.prononciation);
           });
           zone.appendChild(ecouter);
         }
@@ -1181,8 +1186,8 @@
           rendreEssai(zone, essai);
           finir();
           descendre();
-          if (voixActive && (essai.prononciation || essai.retour)) {
-            parler(essai.prononciation || essai.retour, "fr-FR", 0.95);
+          if (voixActive && essai.retour) {
+            direWolof(essai.retour, essai.prononciation);
           }
         })
         .catch(function (err) {
