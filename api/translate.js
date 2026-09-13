@@ -52,6 +52,86 @@ async function listerModelesGemini() {
   return modelesEnCache;
 }
 
+const PROMPT_AUDIO = `Tu es un professeur bienveillant qui aide un locuteur wolof à apprendre l'anglais.
+Écoute l'enregistrement : la personne parle en WOLOF (langue du Sénégal).
+
+Réponds UNIQUEMENT par un objet JSON valide, sans aucun texte autour :
+{
+  "wolof": "<ce que la personne a dit, transcrit en wolof>",
+  "anglais": "<la traduction de cette phrase en anglais>",
+  "explication": "<une phrase en wolof expliquant la construction anglaise>"
+}
+
+Si l'enregistrement est inaudible, vide ou incompréhensible, mets une chaîne vide dans "wolof".`;
+
+// Gemini sait écouter l'audio directement. Un seul appel remplace donc la
+// transcription Hugging Face puis la génération de la leçon — et surtout,
+// Gemini connaît le wolof, contrairement à Whisper.
+async function analyserAudioAvecGemini(audioBase64, mimeType) {
+  const modeles = await listerModelesGemini();
+  let dernierDetail = "";
+  let quotaAtteint = false;
+
+  for (const modele of modeles) {
+    const reponse = await fetch(
+      `${GEMINI_BASE}/models/${modele}:generateContent?key=${process.env.GEMINI_API_KEY}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          contents: [
+            {
+              parts: [
+                { text: PROMPT_AUDIO },
+                { inline_data: { mime_type: mimeType || "audio/wav", data: audioBase64 } },
+              ],
+            },
+          ],
+          generationConfig: { responseMimeType: "application/json" },
+        }),
+      }
+    );
+
+    if (reponse.ok) {
+      const donnees = await reponse.json();
+      const brut = donnees.candidates?.[0]?.content?.parts?.[0]?.text || "";
+
+      let analyse = null;
+      try {
+        analyse = JSON.parse(brut);
+      } catch (err) {
+        dernierDetail = "Réponse JSON illisible du modèle " + modele + ".";
+        continue;
+      }
+
+      if (!analyse || !String(analyse.wolof || "").trim()) {
+        return { ok: false, audioVide: true };
+      }
+
+      modelesEnCache = [modele, ...modeles.filter((m) => m !== modele)];
+      return {
+        ok: true,
+        transcriptionWolof: String(analyse.wolof).trim(),
+        anglais: String(analyse.anglais || "").trim(),
+        explication: String(analyse.explication || "").trim(),
+      };
+    }
+
+    dernierDetail = await reponse.text();
+
+    if (reponse.status === 429) {
+      quotaAtteint = true;
+      continue;
+    }
+    if (reponse.status === 404 || reponse.status === 400) {
+      continue; // modèle retiré, ou qui n'accepte pas l'audio
+    }
+    break;
+  }
+
+  return { ok: false, quotaAtteint, details: dernierDetail };
+}
+
 async function genererLecon(transcriptionWolof) {
   const modeles = await listerModelesGemini();
   let dernierDetail = "";
@@ -135,6 +215,10 @@ async function listerVoixCandidates() {
 }
 
 async function synthetiser(texte) {
+  if (!process.env.ELEVENLABS_API_KEY) {
+    return { ok: false, details: "ELEVENLABS_API_KEY absente : lecture par le navigateur." };
+  }
+
   const voixDisponibles = await listerVoixCandidates();
 
   if (voixDisponibles.length === 0) {
@@ -191,57 +275,84 @@ module.exports = async function handler(req, res) {
     return res.status(400).json({ error: "Champ 'audioBase64' manquant dans le corps de la requête." });
   }
 
-  const clesManquantes = ["HF_API_KEY", "GEMINI_API_KEY", "ELEVENLABS_API_KEY"].filter(
-    (cle) => !process.env[cle]
-  );
-  if (clesManquantes.length > 0) {
+  // Seule la clé Gemini est indispensable : Hugging Face n'est plus qu'un
+  // filet de secours, et le navigateur sait lire la leçon si ElevenLabs manque.
+  if (!process.env.GEMINI_API_KEY) {
     return res.status(500).json({
       error: "Configuration incomplète",
-      details: "Variables d'environnement manquantes sur Vercel : " + clesManquantes.join(", "),
+      details: "Variable d'environnement manquante sur Vercel : GEMINI_API_KEY",
     });
   }
 
   try {
-    // 1. STT : audio wolof -> texte (Hugging Face Inference API)
-    const audioBuffer = Buffer.from(audioBase64, "base64");
-    const sttResponse = await fetch(HF_URL, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${process.env.HF_API_KEY}`,
-        "Content-Type": mimeType || "audio/webm",
-      },
-      body: audioBuffer,
-    });
+    // 1. Gemini écoute l'audio wolof et rédige la leçon en un seul appel.
+    //    Whisper ne connaît pas le wolof : il transcrivait du charabia.
+    let transcriptionWolof = "";
+    let reponseLLM = "";
 
-    if (!sttResponse.ok) {
-      const errText = await sttResponse.text();
-      return res.status(502).json({ error: "Échec STT (Hugging Face)", details: errText });
-    }
+    const analyse = await analyserAudioAvecGemini(audioBase64, mimeType);
 
-    const sttData = await sttResponse.json();
-    const transcriptionWolof = sttData.text || "";
-
-    if (!transcriptionWolof) {
-      return res.status(502).json({ error: "Transcription vide, réessaie avec un audio plus clair." });
-    }
-
-    // 2. LLM : texte wolof -> traduction + explication (Gemini)
-    const resultatLlm = await genererLecon(transcriptionWolof);
-
-    if (!resultatLlm.ok) {
-      if (resultatLlm.quotaAtteint) {
-        return res.status(429).json({
-          error: "Quota Gemini atteint",
-          details:
-            "Le quota gratuit de l'API Google est épuisé. Les limites par minute " +
-            "se libèrent au bout d'une minute ; les limites journalières repartent " +
-            "à minuit, heure du Pacifique (9h heure de Dakar).",
+    if (analyse.ok) {
+      transcriptionWolof = analyse.transcriptionWolof;
+      reponseLLM = `EN: ${analyse.anglais} | WO: ${analyse.explication}`;
+    } else if (analyse.audioVide) {
+      return res.status(422).json({
+        error: "Je n'ai pas compris",
+        details: "L'enregistrement est inaudible ou vide. Réessaie en parlant plus près du micro.",
+      });
+    } else if (analyse.quotaAtteint) {
+      return res.status(429).json({
+        error: "Quota Gemini atteint",
+        details:
+          "Le quota gratuit de l'API Google est épuisé. Les limites par minute " +
+          "se libèrent au bout d'une minute ; les limites journalières repartent " +
+          "à minuit, heure du Pacifique (9h heure de Dakar).",
+      });
+    } else {
+      // 2. Repli : ancien circuit Hugging Face puis Gemini sur le texte.
+      if (!process.env.HF_API_KEY) {
+        return res.status(502).json({
+          error: "Échec de la transcription",
+          details: String(analyse.details).slice(0, 300),
         });
       }
-      return res.status(502).json({ error: "Échec LLM (Gemini)", details: resultatLlm.details });
-    }
 
-    const reponseLLM = resultatLlm.texte;
+      const sttResponse = await fetch(HF_URL, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${process.env.HF_API_KEY}`,
+          "Content-Type": mimeType || "audio/wav",
+        },
+        body: Buffer.from(audioBase64, "base64"),
+      });
+
+      if (!sttResponse.ok) {
+        return res.status(502).json({
+          error: "Échec de la transcription",
+          details: "Gemini : " + String(analyse.details).slice(0, 200) +
+            " | Hugging Face : " + (await sttResponse.text()).slice(0, 200),
+        });
+      }
+
+      const sttData = await sttResponse.json();
+      transcriptionWolof = sttData.text || "";
+
+      if (!transcriptionWolof) {
+        return res.status(422).json({
+          error: "Je n'ai pas compris",
+          details: "Aucune parole détectée. Réessaie en parlant plus près du micro.",
+        });
+      }
+
+      const resultatLlm = await genererLecon(transcriptionWolof);
+      if (!resultatLlm.ok) {
+        return res.status(502).json({
+          error: "Échec LLM (Gemini)",
+          details: String(resultatLlm.details).slice(0, 300),
+        });
+      }
+      reponseLLM = resultatLlm.texte;
+    }
 
     // On extrait la partie anglaise pour la TTS (avant le séparateur "|")
     const texteAnglais = reponseLLM.split("|")[0].replace(/^EN:\s*/i, "").trim();
