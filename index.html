@@ -611,12 +611,16 @@
         return;
       }
 
+      // On indique au backend le format réellement enregistré
+      // (webm sur Chrome/Android, mp4 sur Safari/iPhone).
+      var typeAudio = (blob.type || "audio/webm").split(";")[0];
+
       blobVersBase64(blob)
         .then(function (audioBase64) {
           return fetch(API_URL, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ audioBase64: audioBase64 })
+            body: JSON.stringify({ audioBase64: audioBase64, mimeType: typeAudio })
           });
         })
         .then(function (reponse) {
@@ -628,9 +632,12 @@
               donnees = null;
             }
             if (!reponse.ok) {
+              var morceaux = donnees
+                ? [donnees.error, donnees.details].filter(Boolean)
+                : [];
               var msg =
-                (donnees && (donnees.error || donnees.details)) ||
-                texteBrut.slice(0, 200) ||
+                morceaux.join(" — ").slice(0, 400) ||
+                texteBrut.slice(0, 300) ||
                 "Le serveur a répondu " + reponse.status + ".";
               throw new Error(msg);
             }

@@ -9,7 +9,7 @@
 //   { "transcriptionWolof": "...", "reponseLLM": "...", "audioBase64": "<audio anglais encodé>" }
 
 const HF_MODEL = "openai/whisper-large-v3";
-const HF_URL = `https://api-inference.huggingface.co/models/${HF_MODEL}`;
+const HF_URL = `https://router.huggingface.co/hf-inference/models/${HF_MODEL}`;
 const GEMINI_URL =
   "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent";
 const ELEVENLABS_VOICE_ID = process.env.ELEVENLABS_VOICE_ID || "21m00Tcm4TlvDq8ikWAM"; // voix par défaut "Rachel"
@@ -26,9 +26,19 @@ module.exports = async function handler(req, res) {
     return res.status(405).json({ error: "Méthode non autorisée, utilise POST." });
   }
 
-  const { audioBase64 } = req.body || {};
+  const { audioBase64, mimeType } = req.body || {};
   if (!audioBase64) {
     return res.status(400).json({ error: "Champ 'audioBase64' manquant dans le corps de la requête." });
+  }
+
+  const clesManquantes = ["HF_API_KEY", "GEMINI_API_KEY", "ELEVENLABS_API_KEY"].filter(
+    (cle) => !process.env[cle]
+  );
+  if (clesManquantes.length > 0) {
+    return res.status(500).json({
+      error: "Configuration incomplète",
+      details: "Variables d'environnement manquantes sur Vercel : " + clesManquantes.join(", "),
+    });
   }
 
   try {
@@ -38,7 +48,7 @@ module.exports = async function handler(req, res) {
       method: "POST",
       headers: {
         Authorization: `Bearer ${process.env.HF_API_KEY}`,
-        "Content-Type": "audio/wav",
+        "Content-Type": mimeType || "audio/webm",
       },
       body: audioBuffer,
     });
@@ -111,6 +121,11 @@ module.exports = async function handler(req, res) {
       audioBase64: audioAnglaisBase64,
     });
   } catch (err) {
-    return res.status(500).json({ error: "Erreur serveur", details: err.message });
+    console.error("Erreur pipeline Wolofglish :", err);
+    const cause = err && err.cause ? " (" + (err.cause.code || err.cause.message) + ")" : "";
+    return res.status(500).json({
+      error: "Erreur serveur",
+      details: ((err && err.message) || "Exception inconnue") + cause,
+    });
   }
 };
