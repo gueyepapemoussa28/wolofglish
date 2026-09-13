@@ -1,0 +1,745 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#0f1720" />
+  <title>Wolofglish — Ton coach d'anglais en wolof</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎙️</text></svg>" />
+  <style>
+    :root {
+      --bg: #0f1720;
+      --bg-soft: #17222e;
+      --card: #1c2836;
+      --card-border: #2b3a4c;
+      --text: #eef3f8;
+      --text-dim: #9aabbd;
+      --accent: #f4a259;
+      --accent-soft: rgba(244, 162, 89, 0.15);
+      --green: #4fc3a1;
+      --red: #e56b6f;
+      --radius: 20px;
+      --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    }
+
+    * { box-sizing: border-box; }
+
+    html, body {
+      margin: 0;
+      padding: 0;
+      min-height: 100%;
+    }
+
+    body {
+      background: radial-gradient(circle at 50% 0%, #1b2a3a 0%, var(--bg) 55%);
+      color: var(--text);
+      font-family: var(--font);
+      -webkit-font-smoothing: antialiased;
+      display: flex;
+      justify-content: center;
+      min-height: 100vh;
+      min-height: 100dvh;
+    }
+
+    .app {
+      width: 100%;
+      max-width: 480px;
+      padding: 24px 20px calc(32px + env(safe-area-inset-bottom));
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+    }
+
+    /* ---------- En-tête ---------- */
+    header {
+      text-align: center;
+      padding-top: 12px;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: var(--accent-soft);
+      color: var(--accent);
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      padding: 6px 14px;
+      border-radius: 999px;
+    }
+
+    h1 {
+      font-size: 26px;
+      margin: 14px 0 6px;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+    }
+
+    .tagline {
+      margin: 0;
+      color: var(--text-dim);
+      font-size: 15px;
+      line-height: 1.5;
+    }
+
+    /* ---------- Scène micro ---------- */
+    .stage {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 18px;
+      padding: 12px 0 4px;
+    }
+
+    .mic-wrap {
+      position: relative;
+      width: 150px;
+      height: 150px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .pulse {
+      position: absolute;
+      inset: 0;
+      border-radius: 50%;
+      background: var(--accent);
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    body.is-recording .pulse {
+      animation: pulse 1.8s ease-out infinite;
+    }
+
+    body.is-recording .pulse.delay { animation-delay: 0.9s; }
+
+    @keyframes pulse {
+      0%   { transform: scale(0.75); opacity: 0.35; }
+      100% { transform: scale(1.25); opacity: 0; }
+    }
+
+    #micBtn {
+      position: relative;
+      width: 116px;
+      height: 116px;
+      border-radius: 50%;
+      border: none;
+      cursor: pointer;
+      background: linear-gradient(160deg, #f6b478, var(--accent));
+      color: #12202c;
+      box-shadow: 0 14px 34px rgba(244, 162, 89, 0.32);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: transform 0.18s ease, box-shadow 0.18s ease, background 0.25s ease;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    #micBtn:active { transform: scale(0.94); }
+
+    #micBtn:disabled {
+      cursor: not-allowed;
+      background: linear-gradient(160deg, #3a4a5c, #2b3a4c);
+      color: var(--text-dim);
+      box-shadow: none;
+    }
+
+    body.is-recording #micBtn {
+      background: linear-gradient(160deg, #f08a8e, var(--red));
+      box-shadow: 0 14px 34px rgba(229, 107, 111, 0.35);
+      color: #fff;
+    }
+
+    #micBtn svg { width: 46px; height: 46px; }
+
+    .spinner {
+      width: 40px;
+      height: 40px;
+      border: 4px solid rgba(255, 255, 255, 0.25);
+      border-top-color: var(--text);
+      border-radius: 50%;
+      animation: spin 0.9s linear infinite;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    #status {
+      font-size: 18px;
+      font-weight: 600;
+      text-align: center;
+      margin: 0;
+      min-height: 26px;
+    }
+
+    #hint {
+      font-size: 14px;
+      color: var(--text-dim);
+      text-align: center;
+      margin: 0;
+      min-height: 20px;
+    }
+
+    #timer {
+      font-variant-numeric: tabular-nums;
+      font-size: 14px;
+      color: var(--accent);
+      font-weight: 600;
+      letter-spacing: 0.06em;
+      min-height: 18px;
+    }
+
+    /* ---------- Cartes ---------- */
+    .cards {
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .card {
+      background: var(--card);
+      border: 1px solid var(--card-border);
+      border-radius: var(--radius);
+      padding: 18px;
+      animation: rise 0.35s ease both;
+    }
+
+    @keyframes rise {
+      from { opacity: 0; transform: translateY(10px); }
+      to   { opacity: 1; transform: none; }
+    }
+
+    .card-label {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.09em;
+      text-transform: uppercase;
+      color: var(--text-dim);
+      margin-bottom: 10px;
+    }
+
+    .card-label .dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--accent);
+      flex: none;
+    }
+
+    .card.you .card-label .dot { background: var(--text-dim); }
+
+    .card p { margin: 0; line-height: 1.55; }
+
+    .wolof-said { font-size: 17px; color: var(--text); font-style: italic; }
+
+    .lesson-en {
+      font-size: 22px;
+      font-weight: 700;
+      line-height: 1.35;
+      color: var(--text);
+      margin: 0 0 14px;
+      letter-spacing: -0.01em;
+    }
+
+    .lesson-wo {
+      font-size: 15px;
+      color: var(--text-dim);
+      line-height: 1.6;
+      border-left: 3px solid var(--accent);
+      padding-left: 12px;
+    }
+
+    .replay {
+      margin-top: 16px;
+      width: 100%;
+      padding: 13px;
+      border-radius: 14px;
+      border: 1px solid var(--card-border);
+      background: var(--bg-soft);
+      color: var(--text);
+      font-size: 15px;
+      font-weight: 600;
+      font-family: var(--font);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      transition: background 0.2s ease;
+    }
+
+    .replay:active { background: #22303f; }
+
+    /* ---------- Erreur ---------- */
+    .error {
+      background: rgba(229, 107, 111, 0.12);
+      border: 1px solid rgba(229, 107, 111, 0.35);
+      border-radius: var(--radius);
+      padding: 16px 18px;
+      color: #ffd9da;
+      font-size: 15px;
+      line-height: 1.55;
+      animation: rise 0.35s ease both;
+    }
+
+    .error strong { display: block; margin-bottom: 4px; color: #fff; }
+
+    footer {
+      text-align: center;
+      color: var(--text-dim);
+      font-size: 12px;
+      margin-top: auto;
+      padding-top: 12px;
+      opacity: 0.7;
+    }
+
+    [hidden] { display: none !important; }
+  </style>
+</head>
+<body>
+  <div class="app">
+
+    <header>
+      <span class="badge">🎙️ Coach vocal</span>
+      <h1>Wolofglish</h1>
+      <p class="tagline">Wax ma ci wolof, ma la ko tekki ci anglais.<br />Parle-moi en wolof, je t'apprends l'anglais.</p>
+    </header>
+
+    <section class="stage">
+      <div class="mic-wrap">
+        <span class="pulse"></span>
+        <span class="pulse delay"></span>
+        <button id="micBtn" type="button" aria-label="Démarrer l'enregistrement">
+          <svg id="micIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
+            <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+            <line x1="12" y1="19" x2="12" y2="23"/>
+            <line x1="8" y1="23" x2="16" y2="23"/>
+          </svg>
+          <span id="spinner" class="spinner" hidden></span>
+        </button>
+      </div>
+
+      <p id="status">Parle-moi en wolof</p>
+      <p id="hint">Appuie sur le micro et raconte-moi ta phrase.</p>
+      <div id="timer"></div>
+    </section>
+
+    <div id="errorBox" class="error" hidden></div>
+
+    <section id="result" class="cards" hidden>
+      <article class="card you">
+        <div class="card-label"><span class="dot"></span>Li nga wax — ce que tu as dit</div>
+        <p id="wolofText" class="wolof-said"></p>
+      </article>
+
+      <article class="card coach">
+        <div class="card-label"><span class="dot"></span>Coach bi — ta leçon</div>
+        <p id="englishText" class="lesson-en"></p>
+        <p id="wolofExplain" class="lesson-wo"></p>
+        <button id="replayBtn" class="replay" type="button" hidden>
+          <span aria-hidden="true">🔊</span> Réécouter en anglais
+        </button>
+      </article>
+    </section>
+
+    <footer>Wolofglish · ton coach d'anglais, en wolof</footer>
+  </div>
+
+  <script>
+  (function () {
+    "use strict";
+
+    /* ====================================================================
+       1. CONFIGURATION
+       ==================================================================== */
+
+    // En local (fichier ouvert directement) on tape le backend Vercel.
+    // Une fois déployé, on utilise le chemin relatif du même projet.
+    var API_URL =
+      location.protocol === "file:" || location.hostname === ""
+        ? "https://wolofglish.vercel.app/api/translate"
+        : "/api/translate";
+
+    var MAX_DUREE_MS = 30000; // arrêt automatique après 30 secondes
+
+    /* ====================================================================
+       2. ÉLÉMENTS DE LA PAGE
+       ==================================================================== */
+
+    var micBtn = document.getElementById("micBtn");
+    var micIcon = document.getElementById("micIcon");
+    var spinner = document.getElementById("spinner");
+    var statusEl = document.getElementById("status");
+    var hintEl = document.getElementById("hint");
+    var timerEl = document.getElementById("timer");
+    var resultEl = document.getElementById("result");
+    var errorBox = document.getElementById("errorBox");
+    var wolofText = document.getElementById("wolofText");
+    var englishText = document.getElementById("englishText");
+    var wolofExplain = document.getElementById("wolofExplain");
+    var replayBtn = document.getElementById("replayBtn");
+
+    /* ====================================================================
+       3. ÉTAT INTERNE
+       ==================================================================== */
+
+    var mediaRecorder = null;
+    var chunks = [];
+    var stream = null;
+    var etat = "idle"; // idle | recording | sending
+    var timerInterval = null;
+    var autoStopTimeout = null;
+    var debutEnregistrement = 0;
+    var audioCourant = null;
+
+    /* ====================================================================
+       4. PETITS UTILITAIRES D'AFFICHAGE
+       ==================================================================== */
+
+    function setEtat(nouvelEtat) {
+      etat = nouvelEtat;
+      document.body.classList.toggle("is-recording", nouvelEtat === "recording");
+
+      var enChargement = nouvelEtat === "sending";
+      spinner.hidden = !enChargement;
+      micIcon.style.display = enChargement ? "none" : "block";
+      micBtn.disabled = enChargement;
+
+      if (nouvelEtat === "idle") {
+        micBtn.setAttribute("aria-label", "Démarrer l'enregistrement");
+      } else if (nouvelEtat === "recording") {
+        micBtn.setAttribute("aria-label", "Arrêter l'enregistrement");
+      } else {
+        micBtn.setAttribute("aria-label", "Analyse en cours");
+      }
+    }
+
+    function dire(titre, sousTitre) {
+      statusEl.textContent = titre;
+      hintEl.textContent = sousTitre || "";
+    }
+
+    function montrerErreur(titre, message) {
+      errorBox.innerHTML = "";
+      var fort = document.createElement("strong");
+      fort.textContent = titre;
+      errorBox.appendChild(fort);
+      errorBox.appendChild(document.createTextNode(message));
+      errorBox.hidden = false;
+    }
+
+    function cacherErreur() {
+      errorBox.hidden = true;
+      errorBox.textContent = "";
+    }
+
+    function demarrerChrono() {
+      debutEnregistrement = Date.now();
+      timerEl.textContent = "00:00";
+      timerInterval = setInterval(function () {
+        var secondes = Math.floor((Date.now() - debutEnregistrement) / 1000);
+        var mm = String(Math.floor(secondes / 60)).padStart(2, "0");
+        var ss = String(secondes % 60).padStart(2, "0");
+        timerEl.textContent = mm + ":" + ss;
+      }, 250);
+    }
+
+    function arreterChrono() {
+      clearInterval(timerInterval);
+      timerInterval = null;
+      timerEl.textContent = "";
+    }
+
+    /* ====================================================================
+       5. CONVERSION AUDIO -> BASE64
+       ==================================================================== */
+
+    function blobVersBase64(blob) {
+      return blob.arrayBuffer().then(function (buffer) {
+        var octets = new Uint8Array(buffer);
+        var binaire = "";
+        var taillePaquet = 0x8000; // on découpe pour ne pas saturer la pile
+        for (var i = 0; i < octets.length; i += taillePaquet) {
+          binaire += String.fromCharCode.apply(
+            null,
+            octets.subarray(i, i + taillePaquet)
+          );
+        }
+        return btoa(binaire);
+      });
+    }
+
+    /* ====================================================================
+       6. CHOIX DU FORMAT D'ENREGISTREMENT
+       ==================================================================== */
+
+    function meilleurFormat() {
+      var candidats = [
+        "audio/webm;codecs=opus",
+        "audio/webm",
+        "audio/mp4",
+        "audio/ogg;codecs=opus",
+        "audio/ogg"
+      ];
+      if (typeof MediaRecorder === "undefined" || !MediaRecorder.isTypeSupported) {
+        return "";
+      }
+      for (var i = 0; i < candidats.length; i++) {
+        if (MediaRecorder.isTypeSupported(candidats[i])) {
+          return candidats[i];
+        }
+      }
+      return "";
+    }
+
+    /* ====================================================================
+       7. DÉMARRER / ARRÊTER L'ENREGISTREMENT
+       ==================================================================== */
+
+    function demarrerEnregistrement() {
+      cacherErreur();
+      resultEl.hidden = true;
+
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        montrerErreur(
+          "Micro indisponible",
+          "Ton navigateur ne permet pas d'enregistrer. Essaie Chrome, Safari ou Firefox à jour, en HTTPS."
+        );
+        return;
+      }
+
+      dire("Un instant…", "J'ouvre le micro.");
+
+      navigator.mediaDevices
+        .getUserMedia({
+          audio: {
+            echoCancellation: true,
+            noiseSuppression: true,
+            autoGainControl: true
+          }
+        })
+        .then(function (fluxMicro) {
+          stream = fluxMicro;
+          chunks = [];
+
+          var format = meilleurFormat();
+          try {
+            mediaRecorder = format
+              ? new MediaRecorder(stream, { mimeType: format })
+              : new MediaRecorder(stream);
+          } catch (e) {
+            mediaRecorder = new MediaRecorder(stream);
+          }
+
+          mediaRecorder.addEventListener("dataavailable", function (evt) {
+            if (evt.data && evt.data.size > 0) {
+              chunks.push(evt.data);
+            }
+          });
+
+          mediaRecorder.addEventListener("stop", function () {
+            libererMicro();
+            var type = mediaRecorder.mimeType || "audio/webm";
+            var blob = new Blob(chunks, { type: type });
+            chunks = [];
+            envoyerAuCoach(blob);
+          });
+
+          mediaRecorder.start();
+          setEtat("recording");
+          dire("J'écoute…", "Appuie à nouveau quand tu as fini.");
+          demarrerChrono();
+
+          autoStopTimeout = setTimeout(function () {
+            if (etat === "recording") {
+              arreterEnregistrement();
+            }
+          }, MAX_DUREE_MS);
+        })
+        .catch(function (err) {
+          setEtat("idle");
+          dire("Parle-moi en wolof", "Appuie sur le micro et raconte-moi ta phrase.");
+          if (err && (err.name === "NotAllowedError" || err.name === "SecurityError")) {
+            montrerErreur(
+              "Micro bloqué",
+              "Autorise l'accès au micro dans les réglages de ton navigateur, puis réessaie."
+            );
+          } else if (err && err.name === "NotFoundError") {
+            montrerErreur("Aucun micro détecté", "Branche un micro ou vérifie les réglages de ton appareil.");
+          } else {
+            montrerErreur("Impossible d'ouvrir le micro", (err && err.message) || "Erreur inconnue.");
+          }
+        });
+    }
+
+    function arreterEnregistrement() {
+      clearTimeout(autoStopTimeout);
+      autoStopTimeout = null;
+      arreterChrono();
+      setEtat("sending");
+      dire("Je réfléchis…", "Je prépare ta leçon, patiente un peu.");
+
+      if (mediaRecorder && mediaRecorder.state !== "inactive") {
+        mediaRecorder.stop();
+      }
+    }
+
+    function libererMicro() {
+      if (stream) {
+        stream.getTracks().forEach(function (piste) {
+          piste.stop();
+        });
+        stream = null;
+      }
+    }
+
+    /* ====================================================================
+       8. APPEL DU BACKEND
+       ==================================================================== */
+
+    function envoyerAuCoach(blob) {
+      if (!blob || blob.size < 1000) {
+        setEtat("idle");
+        dire("Je n'ai rien entendu", "Réessaie en parlant un peu plus longtemps.");
+        return;
+      }
+
+      blobVersBase64(blob)
+        .then(function (audioBase64) {
+          return fetch(API_URL, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ audioBase64: audioBase64 })
+          });
+        })
+        .then(function (reponse) {
+          return reponse.text().then(function (texteBrut) {
+            var donnees = null;
+            try {
+              donnees = JSON.parse(texteBrut);
+            } catch (e) {
+              donnees = null;
+            }
+            if (!reponse.ok) {
+              var msg =
+                (donnees && (donnees.error || donnees.details)) ||
+                texteBrut.slice(0, 200) ||
+                "Le serveur a répondu " + reponse.status + ".";
+              throw new Error(msg);
+            }
+            if (!donnees) {
+              throw new Error("Réponse illisible du serveur.");
+            }
+            return donnees;
+          });
+        })
+        .then(function (donnees) {
+          afficherLecon(donnees);
+        })
+        .catch(function (err) {
+          setEtat("idle");
+          dire("Parle-moi en wolof", "Appuie sur le micro et raconte-moi ta phrase.");
+          montrerErreur("Oups, ça n'a pas marché", (err && err.message) || "Réessaie dans un instant.");
+        });
+    }
+
+    /* ====================================================================
+       9. AFFICHAGE DE LA LEÇON
+       Format attendu du backend : "EN: <traduction> | WO: <explication>"
+       ==================================================================== */
+
+    function decouperReponse(texte) {
+      var brut = (texte || "").trim();
+      var morceaux = brut.split("|");
+
+      var partieEn = (morceaux[0] || "").replace(/^\s*EN\s*:\s*/i, "").trim();
+      var partieWo = (morceaux.slice(1).join("|") || "").replace(/^\s*WO\s*:\s*/i, "").trim();
+
+      if (!partieEn) {
+        partieEn = brut;
+        partieWo = "";
+      }
+      return { en: partieEn, wo: partieWo };
+    }
+
+    function afficherLecon(donnees) {
+      var lecon = decouperReponse(donnees.reponseLLM);
+
+      wolofText.textContent = donnees.transcriptionWolof
+        ? "« " + donnees.transcriptionWolof + " »"
+        : "(transcription indisponible)";
+
+      englishText.textContent = lecon.en;
+      wolofExplain.textContent = lecon.wo;
+      wolofExplain.hidden = !lecon.wo;
+
+      resultEl.hidden = false;
+      setEtat("idle");
+      dire("Voilà ta leçon 👏", "Appuie sur le micro pour continuer.");
+
+      if (donnees.audioBase64) {
+        preparerAudio(donnees.audioBase64);
+      } else {
+        replayBtn.hidden = true;
+      }
+
+      resultEl.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    }
+
+    /* ====================================================================
+       10. LECTURE DE L'AUDIO ANGLAIS (MP3 renvoyé par ElevenLabs)
+       ==================================================================== */
+
+    function preparerAudio(base64) {
+      if (audioCourant) {
+        audioCourant.pause();
+        audioCourant = null;
+      }
+
+      audioCourant = new Audio("data:audio/mpeg;base64," + base64);
+      audioCourant.preload = "auto";
+      replayBtn.hidden = false;
+
+      var lecture = audioCourant.play();
+      if (lecture && typeof lecture.catch === "function") {
+        lecture.catch(function () {
+          // Certains navigateurs bloquent la lecture auto :
+          // l'utilisateur pourra appuyer sur "Réécouter".
+          dire("Voilà ta leçon 👏", "Appuie sur 🔊 pour entendre la prononciation.");
+        });
+      }
+    }
+
+    replayBtn.addEventListener("click", function () {
+      if (!audioCourant) return;
+      audioCourant.currentTime = 0;
+      audioCourant.play();
+    });
+
+    /* ====================================================================
+       11. BOUTON MICRO : un appui = démarrer, un autre = envoyer
+       ==================================================================== */
+
+    micBtn.addEventListener("click", function () {
+      if (etat === "idle") {
+        demarrerEnregistrement();
+      } else if (etat === "recording") {
+        arreterEnregistrement();
+      }
+    });
+
+    // Sécurité : si on quitte la page pendant un enregistrement, on coupe le micro.
+    window.addEventListener("pagehide", libererMicro);
+
+    setEtat("idle");
+  })();
+  </script>
+</body>
+</html>

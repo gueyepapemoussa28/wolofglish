@@ -1,0 +1,14 @@
+# Secrets — ne JAMAIS publier sur GitHub
+.env
+.env.*
+!.env.example
+
+# Dépendances
+node_modules/
+
+# Vercel
+.vercel/
+
+# Système
+.DS_Store
+*.log
