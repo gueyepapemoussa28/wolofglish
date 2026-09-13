@@ -12,8 +12,37 @@ const HF_MODEL = "openai/whisper-large-v3";
 const HF_URL = `https://router.huggingface.co/hf-inference/models/${HF_MODEL}`;
 const GEMINI_MODEL = process.env.GEMINI_MODEL || "gemini-3.6-flash";
 const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
-const ELEVENLABS_VOICE_ID = process.env.ELEVENLABS_VOICE_ID || "21m00Tcm4TlvDq8ikWAM"; // voix par défaut "Rachel"
-const ELEVENLABS_URL = `https://api.elevenlabs.io/v1/text-to-speech/${ELEVENLABS_VOICE_ID}`;
+// Les comptes ElevenLabs gratuits n'ont pas accès aux voix de la bibliothèque
+// (dont "Rachel"). On détecte donc une voix réellement disponible sur le compte,
+// sauf si ELEVENLABS_VOICE_ID est défini explicitement sur Vercel.
+let voixEnCache = null;
+
+async function obtenirVoixDisponible() {
+  if (process.env.ELEVENLABS_VOICE_ID) {
+    return process.env.ELEVENLABS_VOICE_ID;
+  }
+  if (voixEnCache) {
+    return voixEnCache;
+  }
+
+  const reponse = await fetch("https://api.elevenlabs.io/v1/voices", {
+    headers: { "xi-api-key": process.env.ELEVENLABS_API_KEY },
+  });
+
+  if (!reponse.ok) {
+    throw new Error("Liste des voix ElevenLabs inaccessible : " + (await reponse.text()));
+  }
+
+  const donnees = await reponse.json();
+  const voix = (donnees.voices || [])[0];
+
+  if (!voix) {
+    throw new Error("Aucune voix disponible sur ce compte ElevenLabs.");
+  }
+
+  voixEnCache = voix.voice_id;
+  return voixEnCache;
+}
 
 const SYSTEM_PROMPT = `Tu es un professeur bienveillant qui aide un locuteur wolof à apprendre l'anglais.
 On te donne une phrase transcrite en wolof. Réponds UNIQUEMENT avec :
@@ -94,7 +123,10 @@ module.exports = async function handler(req, res) {
     const texteAnglais = reponseLLM.split("|")[0].replace(/^EN:\s*/i, "").trim();
 
     // 3. TTS : texte anglais -> audio (ElevenLabs)
-    const ttsResponse = await fetch(ELEVENLABS_URL, {
+    const voixId = await obtenirVoixDisponible();
+    const ttsUrl = `https://api.elevenlabs.io/v1/text-to-speech/${voixId}`;
+
+    const ttsResponse = await fetch(ttsUrl, {
       method: "POST",
       headers: {
         "xi-api-key": process.env.ELEVENLABS_API_KEY,
@@ -109,6 +141,7 @@ module.exports = async function handler(req, res) {
 
     if (!ttsResponse.ok) {
       const errText = await ttsResponse.text();
+      voixEnCache = null; // la voix mémorisée n'est plus valable, on redétectera
       return res.status(502).json({ error: "Échec TTS (ElevenLabs)", details: errText });
     }
 
