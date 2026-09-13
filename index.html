@@ -505,10 +505,14 @@
        1. CONFIGURATION
        ================================================================== */
 
-    var API_URL =
+    // Ouvert en local depuis un fichier, on tape le backend en ligne ;
+    // servi par Vercel, on reste en chemin relatif.
+    var API_BASE =
       location.protocol === "file:" || location.hostname === ""
-        ? "https://wolofglish.vercel.app/api/translate"
-        : "/api/translate";
+        ? "https://wolofglish.vercel.app"
+        : "";
+    var API_URL = API_BASE + "/api/translate";
+    var API_PRONONCIATION = API_BASE + "/api/prononciation";
 
     var MAX_DUREE_MS = 45000;   // arrêt automatique de l'enregistrement
     var TAUX_CIBLE = 16000;     // fréquence native des modèles de parole
@@ -1128,7 +1132,7 @@
         .then(function (pret) {
           var type = (pret.type || "audio/wav").split(";")[0];
           return versBase64(pret).then(function (base64) {
-            return fetch("/api/prononciation", {
+            return fetch(API_PRONONCIATION, {
               method: "POST",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({ audioBase64: base64, mimeType: type, phrase: tour.anglais })
