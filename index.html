@@ -225,6 +225,86 @@
 
     .phrase button:active { transform: scale(0.98); }
 
+    .phrase .repeter {
+      background: none;
+      border: 1px solid rgba(244, 162, 89, 0.45);
+      color: var(--accent);
+      margin-top: 8px;
+    }
+
+    .phrase .repeter.encours {
+      background: var(--red);
+      border-color: var(--red);
+      color: #fff;
+      animation: battement 1.3s ease-in-out infinite;
+    }
+
+    @keyframes battement {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.72; }
+    }
+
+    /* Retour sur la prononciation */
+    .essai {
+      margin-top: 12px;
+      background: var(--bg-soft);
+      border: 1px solid var(--card-border);
+      border-radius: 13px;
+      padding: 13px 14px;
+      animation: apparait 0.3s ease both;
+    }
+
+    .essai-tete { display: flex; align-items: center; gap: 10px; }
+
+    .jauge {
+      flex: 1;
+      height: 7px;
+      border-radius: 99px;
+      background: rgba(255, 255, 255, 0.08);
+      overflow: hidden;
+    }
+
+    .jauge i {
+      display: block;
+      height: 100%;
+      border-radius: 99px;
+      transition: width 0.5s ease;
+    }
+
+    .essai-note {
+      font-size: 14px;
+      font-weight: 700;
+      font-variant-numeric: tabular-nums;
+      flex: none;
+    }
+
+    .essai-entendu {
+      margin: 10px 0 0;
+      font-size: 13px;
+      color: var(--text-dim);
+      line-height: 1.5;
+    }
+
+    .essai-entendu b { color: var(--text); font-weight: 600; }
+
+    .essai-retour {
+      margin: 10px 0 0;
+      font-size: 14px;
+      line-height: 1.6;
+    }
+
+    .mots { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+
+    .mot {
+      background: rgba(229, 107, 111, 0.15);
+      border: 1px solid rgba(229, 107, 111, 0.32);
+      color: #ffd9da;
+      border-radius: 8px;
+      padding: 3px 9px;
+      font-size: 13px;
+      font-weight: 600;
+    }
+
     /* La nuance wolof -> anglais */
     .nuance {
       margin-top: 12px;
@@ -456,6 +536,8 @@
     var morceaux = [];
     var flux = null;
     var etat = "repos"; // repos | enregistre | envoie
+    var surTermine = null;  // à qui remettre l'enregistrement une fois fini
+    var boutonEssai = null; // bouton "Répète" actuellement en cours
     var chrono = null;
     var arretAuto = null;
     var debut = 0;
@@ -557,6 +639,37 @@
           jouerAnglais(tour);
         });
         phrase.appendChild(bouton);
+
+        // L'élève répète la phrase ; le coach écoute et corrige.
+        var zoneEssai = creer("div", "essai");
+        zoneEssai.hidden = true;
+
+        var repeter = creer("button", "repeter", "🎤 Répète après moi");
+        repeter.addEventListener("click", function () {
+          if (etat === "enregistre" && boutonEssai === repeter) {
+            arreter("Coach bi dafay déglu…");
+            return;
+          }
+          if (etat !== "repos") return;
+
+          debloquerVoix();
+          if (window.speechSynthesis) window.speechSynthesis.cancel();
+          if (audioEnCours) audioEnCours.pause();
+
+          boutonEssai = repeter;
+          repeter.textContent = "⏹ J'ai fini";
+          repeter.classList.add("encours");
+
+          demarrer(function (blob) {
+            evaluerEssai(blob, tour, zoneEssai, repeter);
+          });
+        });
+
+        phrase.appendChild(repeter);
+        phrase.appendChild(zoneEssai);
+
+        if (tour.essai) rendreEssai(zoneEssai, tour.essai);
+
         bloc.appendChild(phrase);
       }
 
@@ -786,7 +899,8 @@
       return "";
     }
 
-    function demarrer() {
+    function demarrer(destinataire) {
+      surTermine = destinataire || null;
       if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
         afficherSouci("Micro indisponible", "Ton navigateur ne permet pas d'enregistrer. Essaie Chrome ou Safari à jour, en HTTPS.");
         return;
@@ -815,7 +929,9 @@
             libererMicro();
             var blob = new Blob(morceaux, { type: mediaRecorder.mimeType || "audio/webm" });
             morceaux = [];
-            envoyer(blob);
+            var destinataire = surTermine || envoyer;
+            surTermine = null;
+            destinataire(blob);
           });
 
           mediaRecorder.start();
@@ -845,13 +961,13 @@
         });
     }
 
-    function arreter() {
+    function arreter(message) {
       clearTimeout(arretAuto);
       clearInterval(chrono);
       arretAuto = null;
       chrono = null;
       setEtat("envoie");
-      dire("Coach bi dafay xalaat…");
+      dire(message || "Coach bi dafay xalaat…");
       if (mediaRecorder && mediaRecorder.state !== "inactive") mediaRecorder.stop();
     }
 
@@ -940,13 +1056,130 @@
     }
 
     /* ==================================================================
-       10. COMMANDES
+       10. « RÉPÈTE APRÈS MOI » — ÉVALUATION DE LA PRONONCIATION
+       ================================================================== */
+
+    function couleurScore(score) {
+      if (score >= 75) return "#4fc3a1";
+      if (score >= 40) return "#f4a259";
+      return "#e56b6f";
+    }
+
+    function rendreEssai(zone, essai) {
+      zone.innerHTML = "";
+      zone.hidden = false;
+
+      var tete = creer("div", "essai-tete");
+      var jauge = creer("div", "jauge");
+      var barre = creer("i");
+      barre.style.width = essai.score + "%";
+      barre.style.background = couleurScore(essai.score);
+      jauge.appendChild(barre);
+      tete.appendChild(jauge);
+
+      var note = creer("span", "essai-note", essai.score + " / 100");
+      note.style.color = couleurScore(essai.score);
+      tete.appendChild(note);
+      zone.appendChild(tete);
+
+      var entendu = creer("p", "essai-entendu");
+      entendu.appendChild(document.createTextNode("J'ai entendu : "));
+      entendu.appendChild(creer("b", null, "« " + essai.entendu + " »"));
+      zone.appendChild(entendu);
+
+      if (essai.retour) {
+        zone.appendChild(creer("p", "essai-retour", essai.retour));
+        if ("speechSynthesis" in window) {
+          var ecouter = creer("button", "ecouter", "🔊 Écouter le conseil");
+          ecouter.addEventListener("click", function () {
+            parler(essai.prononciation || essai.retour, "fr-FR", 0.95);
+          });
+          zone.appendChild(ecouter);
+        }
+      }
+
+      if (essai.motsACorriger && essai.motsACorriger.length) {
+        var mots = creer("div", "mots");
+        essai.motsACorriger.forEach(function (mot) {
+          mots.appendChild(creer("span", "mot", mot));
+        });
+        zone.appendChild(mots);
+      }
+    }
+
+    function evaluerEssai(blob, tour, zone, bouton) {
+      function finir() {
+        bouton.textContent = "🎤 Répète après moi";
+        bouton.classList.remove("encours");
+        boutonEssai = null;
+        setEtat("repos");
+        dire("Wax ma ci wolof");
+      }
+
+      if (!blob || blob.size < 800) {
+        finir();
+        zone.hidden = false;
+        zone.textContent = "Je n'ai rien entendu, réessaie.";
+        return;
+      }
+
+      convertirEnWav(blob)
+        .catch(function () { return blob; })
+        .then(function (pret) {
+          var type = (pret.type || "audio/wav").split(";")[0];
+          return versBase64(pret).then(function (base64) {
+            return fetch("/api/prononciation", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ audioBase64: base64, mimeType: type, phrase: tour.anglais })
+            });
+          });
+        })
+        .then(function (reponse) {
+          return reponse.text().then(function (texte) {
+            var donnees = null;
+            try { donnees = JSON.parse(texte); } catch (e) { donnees = null; }
+            if (!reponse.ok) {
+              var bouts = donnees ? [donnees.error, donnees.details].filter(Boolean) : [];
+              throw new Error(bouts.join(" — ").slice(0, 300) || "Le serveur a répondu " + reponse.status + ".");
+            }
+            if (!donnees) throw new Error("Réponse illisible du serveur.");
+            return donnees;
+          });
+        })
+        .then(function (essai) {
+          tour.essai = essai;   // conservé pour survivre à un rechargement
+          sauver();
+          rendreEssai(zone, essai);
+          finir();
+          descendre();
+          if (voixActive && (essai.prononciation || essai.retour)) {
+            parler(essai.prononciation || essai.retour, "fr-FR", 0.95);
+          }
+        })
+        .catch(function (err) {
+          finir();
+          zone.hidden = false;
+          zone.textContent = (err && err.message) || "Réessaie dans un instant.";
+        });
+    }
+
+    /* ==================================================================
+       11. COMMANDES
        ================================================================== */
 
     micro.addEventListener("click", function () {
       debloquerVoix();
-      if (etat === "repos") demarrer();
-      else if (etat === "enregistre") arreter();
+      if (etat === "repos") {
+        demarrer();
+      } else if (etat === "enregistre") {
+        // Si un « Répète après moi » est en cours, c'est lui qu'on arrête.
+        if (boutonEssai) {
+          arreter("Coach bi dafay déglu…");
+        } else {
+          arreter();
+        }
+      }
     });
 
     btnVoix.addEventListener("click", function () {
