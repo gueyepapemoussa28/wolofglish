@@ -539,7 +539,9 @@
       if ("speechSynthesis" in window && tour.coach) {
         var ecouter = creer("button", "ecouter", "🔊 Écouter en wolof");
         ecouter.addEventListener("click", function () {
-          parler(tour.coach, "fr-FR", 0.95);   // toujours audible, même voix coupée
+          // On lit la version réécrite pour une voix française, mais c'est
+          // bien le wolof correct qui reste affiché à l'écran.
+          parler(tour.prononciation || tour.coach, "fr-FR", 0.95);
         });
         dit.appendChild(ecouter);
       }
@@ -907,6 +909,7 @@
           var tourCoach = {
             role: "coach",
             coach: donnees.coach,
+            prononciation: donnees.prononciation || donnees.coach,
             anglais: donnees.anglais,
             nuance: donnees.nuance,
             audioBase64: donnees.audioBase64 || null
@@ -924,7 +927,7 @@
           // fait taire les deux ; les boutons de chaque message restent
           // toujours disponibles.
           if (voixActive) {
-            parlerWolof(tourCoach.coach, function () {
+            parlerWolof(tourCoach.prononciation || tourCoach.coach, function () {
               if (tourCoach.anglais) jouerAnglais(tourCoach);
             });
           }

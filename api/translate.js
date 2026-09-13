@@ -12,6 +12,7 @@
 //   {
 //     "wolof":   "<ce que la personne vient de dire>",
 //     "coach":   "<la réponse du coach, en wolof>",
+//     "prononciation": "<la même, en orthographe française, pour la voix>",
 //     "anglais": "<la phrase anglaise à retenir>",
 //     "nuance":  "<explication d'un réflexe wolof, ou chaîne vide>",
 //     "audioBase64": "<audio anglais>" | null
@@ -53,12 +54,34 @@ TON STYLE
 - Des phrases courtes. On t'écoute, on ne te lit pas.
 - Pas de listes, pas de numérotation : tu parles, tu ne rédiges pas.
 - Le wolof tel qu'on le parle à Dakar, avec les mots français qui s'y mêlent
-  naturellement. N'écris pas un wolof académique que personne n'emploie.`;
+  naturellement. N'écris pas un wolof académique que personne n'emploie.
+
+LA PRONONCIATION
+Ta réponse sera lue à voix haute par une synthèse vocale FRANÇAISE — aucune
+n'existe en wolof. Tu dois donc réécrire ta propre réponse avec l'orthographe
+française, pour qu'une voix française la prononce juste.
+
+Quelques correspondances du wolof vers l'écriture française :
+  u → ou      (« bu » s'écrit « bou »)
+  x → kh      (« xam » s'écrit « kham »)
+  ñ → gn      (« ñëw » s'écrit « gneew »)
+  ŋ → ng
+  c → tch     (« ci » s'écrit « tchi »)
+  j → dj      (« jàmm » s'écrit « djamm »)
+  ë → eu
+  g reste dur (« gi » s'écrit « gui »)
+  s reste sourd entre deux voyelles (« asa » s'écrit « assa »)
+  une voyelle finale doit s'entendre (« def » reste « def », « ale » → « alé »)
+
+Laisse les mots FRANÇAIS exactement tels qu'ils sont : « contane » reste
+« contane », surtout pas « tchontane ». Toi seul sais quels mots sont wolof et
+lesquels sont français — c'est pourquoi ce travail te revient.`;
 
 const FORMAT_JSON = `Réponds UNIQUEMENT par un objet JSON valide, sans texte autour :
 {
   "wolof": "<transcription fidèle de ce qu'elle vient de dire>",
-  "coach": "<ta réponse en wolof : ta réaction, puis ta relance>",
+  "coach": "<ta réponse en wolof, écrite normalement — c'est ce qu'on affichera>",
+  "prononciation": "<la même réponse réécrite en orthographe française, pour la voix>",
   "anglais": "<la phrase anglaise à retenir ce tour-ci>",
   "nuance": "<si un réflexe wolof a pollué son anglais, explique-le en wolof ; sinon chaîne vide>"
 }
@@ -128,6 +151,7 @@ function extraireReponse(brut) {
   return {
     wolof: String(analyse.wolof || "").trim(),
     coach: String(analyse.coach || "").trim(),
+    prononciation: String(analyse.prononciation || "").trim(),
     anglais: String(analyse.anglais || "").trim(),
     nuance: String(analyse.nuance || "").trim(),
   };
@@ -330,6 +354,7 @@ module.exports = async function handler(req, res) {
     return res.status(200).json({
       wolof: echange.wolof,
       coach: echange.coach,
+      prononciation: echange.prononciation || echange.coach,
       anglais: echange.anglais,
       nuance: echange.nuance,
       audioBase64: resultatTts.ok ? Buffer.from(resultatTts.audio).toString("base64") : null,
