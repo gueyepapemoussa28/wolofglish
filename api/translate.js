@@ -10,8 +10,95 @@
 
 const HF_MODEL = "openai/whisper-large-v3";
 const HF_URL = `https://router.huggingface.co/hf-inference/models/${HF_MODEL}`;
-const GEMINI_MODEL = process.env.GEMINI_MODEL || "gemini-3.6-flash";
-const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
+const GEMINI_BASE = "https://generativelanguage.googleapis.com/v1beta";
+
+// Le quota gratuit de Gemini est vite atteint, et les modèles changent de nom
+// au fil des mois. On découvre donc les modèles réellement disponibles pour la
+// clé, en plaçant les plus légers d'abord : ce sont eux qui ont les quotas
+// gratuits les plus généreux.
+let modelesEnCache = null;
+
+async function listerModelesGemini() {
+  if (modelesEnCache) {
+    return modelesEnCache;
+  }
+
+  const candidats = [];
+  if (process.env.GEMINI_MODEL) {
+    candidats.push(process.env.GEMINI_MODEL);
+  }
+
+  try {
+    const reponse = await fetch(`${GEMINI_BASE}/models?key=${process.env.GEMINI_API_KEY}`);
+    if (reponse.ok) {
+      const donnees = await reponse.json();
+      const rang = (nom) => {
+        if (nom.includes("flash-lite")) return 0;
+        if (nom.includes("flash")) return 1;
+        return 2;
+      };
+      (donnees.models || [])
+        .filter((m) => (m.supportedGenerationMethods || []).includes("generateContent"))
+        .map((m) => String(m.name).replace(/^models\//, ""))
+        .sort((a, b) => rang(a) - rang(b))
+        .forEach((nom) => candidats.push(nom));
+    }
+  } catch (err) {
+    // Liste inaccessible : on se rabat sur les noms connus.
+  }
+
+  candidats.push("gemini-3.6-flash");
+  modelesEnCache = [...new Set(candidats.filter(Boolean))].slice(0, 4);
+  return modelesEnCache;
+}
+
+async function genererLecon(transcriptionWolof) {
+  const modeles = await listerModelesGemini();
+  let dernierDetail = "";
+  let quotaAtteint = false;
+
+  for (const modele of modeles) {
+    const reponse = await fetch(
+      `${GEMINI_BASE}/models/${modele}:generateContent?key=${process.env.GEMINI_API_KEY}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          contents: [
+            {
+              parts: [{ text: `${SYSTEM_PROMPT}\n\nPhrase wolof : "${transcriptionWolof}"` }],
+            },
+          ],
+        }),
+      }
+    );
+
+    if (reponse.ok) {
+      const donnees = await reponse.json();
+      const texte = donnees.candidates?.[0]?.content?.parts?.[0]?.text || "";
+      if (texte) {
+        // On retient le modèle qui a répondu pour les appels suivants.
+        modelesEnCache = [modele, ...modeles.filter((m) => m !== modele)];
+        return { ok: true, texte };
+      }
+      dernierDetail = "Réponse vide du modèle " + modele + ".";
+      continue;
+    }
+
+    dernierDetail = await reponse.text();
+
+    if (reponse.status === 429) {
+      quotaAtteint = true;
+      continue; // un modèle plus léger a peut-être encore du quota
+    }
+    if (reponse.status === 404) {
+      continue; // modèle retiré : on essaie le suivant
+    }
+    break; // clé invalide, requête malformée : changer de modèle n'y fera rien
+  }
+
+  return { ok: false, quotaAtteint, details: dernierDetail };
+}
 // Les comptes ElevenLabs gratuits n'ont pas accès aux voix de la bibliothèque
 // (dont "Rachel"). On essaie donc successivement les voix réellement
 // disponibles sur le compte, et on mémorise la première qui fonctionne.
@@ -139,29 +226,22 @@ module.exports = async function handler(req, res) {
     }
 
     // 2. LLM : texte wolof -> traduction + explication (Gemini)
-    const llmResponse = await fetch(`${GEMINI_URL}?key=${process.env.GEMINI_API_KEY}`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        contents: [
-          {
-            parts: [{ text: `${SYSTEM_PROMPT}\n\nPhrase wolof : "${transcriptionWolof}"` }],
-          },
-        ],
-      }),
-    });
+    const resultatLlm = await genererLecon(transcriptionWolof);
 
-    if (!llmResponse.ok) {
-      const errText = await llmResponse.text();
-      return res.status(502).json({ error: "Échec LLM (Gemini)", details: errText });
+    if (!resultatLlm.ok) {
+      if (resultatLlm.quotaAtteint) {
+        return res.status(429).json({
+          error: "Quota Gemini atteint",
+          details:
+            "Le quota gratuit de l'API Google est épuisé. Les limites par minute " +
+            "se libèrent au bout d'une minute ; les limites journalières repartent " +
+            "à minuit, heure du Pacifique (9h heure de Dakar).",
+        });
+      }
+      return res.status(502).json({ error: "Échec LLM (Gemini)", details: resultatLlm.details });
     }
 
-    const llmData = await llmResponse.json();
-    const reponseLLM = llmData.candidates?.[0]?.content?.parts?.[0]?.text || "";
-
-    if (!reponseLLM) {
-      return res.status(502).json({ error: "Réponse LLM vide." });
-    }
+    const reponseLLM = resultatLlm.texte;
 
     // On extrait la partie anglaise pour la TTS (avant le séparateur "|")
     const texteAnglais = reponseLLM.split("|")[0].replace(/^EN:\s*/i, "").trim();
