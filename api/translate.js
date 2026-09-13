@@ -13,35 +13,79 @@ const HF_URL = `https://router.huggingface.co/hf-inference/models/${HF_MODEL}`;
 const GEMINI_MODEL = process.env.GEMINI_MODEL || "gemini-3.6-flash";
 const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
 // Les comptes ElevenLabs gratuits n'ont pas accès aux voix de la bibliothèque
-// (dont "Rachel"). On détecte donc une voix réellement disponible sur le compte,
-// sauf si ELEVENLABS_VOICE_ID est défini explicitement sur Vercel.
+// (dont "Rachel"). On essaie donc successivement les voix réellement
+// disponibles sur le compte, et on mémorise la première qui fonctionne.
 let voixEnCache = null;
 
-async function obtenirVoixDisponible() {
-  if (process.env.ELEVENLABS_VOICE_ID) {
-    return process.env.ELEVENLABS_VOICE_ID;
+async function listerVoixCandidates() {
+  const candidates = [];
+  if (voixEnCache) candidates.push(voixEnCache);
+  if (process.env.ELEVENLABS_VOICE_ID) candidates.push(process.env.ELEVENLABS_VOICE_ID);
+
+  try {
+    const reponse = await fetch("https://api.elevenlabs.io/v1/voices", {
+      headers: { "xi-api-key": process.env.ELEVENLABS_API_KEY },
+    });
+
+    if (reponse.ok) {
+      const donnees = await reponse.json();
+      // Les voix appartenant au compte passent avant celles de la bibliothèque.
+      const ordre = ["cloned", "generated", "professional", "premade"];
+      const rang = (categorie) => {
+        const index = ordre.indexOf(categorie);
+        return index === -1 ? ordre.length : index;
+      };
+      (donnees.voices || [])
+        .slice()
+        .sort((a, b) => rang(a.category) - rang(b.category))
+        .forEach((voix) => candidates.push(voix.voice_id));
+    }
+  } catch (err) {
+    // Liste inaccessible : on se contente des identifiants déjà connus.
   }
-  if (voixEnCache) {
-    return voixEnCache;
+
+  return [...new Set(candidates.filter(Boolean))].slice(0, 6);
+}
+
+async function synthetiser(texte) {
+  const voixDisponibles = await listerVoixCandidates();
+
+  if (voixDisponibles.length === 0) {
+    return { ok: false, details: "Aucune voix disponible sur ce compte ElevenLabs." };
   }
 
-  const reponse = await fetch("https://api.elevenlabs.io/v1/voices", {
-    headers: { "xi-api-key": process.env.ELEVENLABS_API_KEY },
-  });
+  let dernierDetail = "";
 
-  if (!reponse.ok) {
-    throw new Error("Liste des voix ElevenLabs inaccessible : " + (await reponse.text()));
+  for (const voixId of voixDisponibles) {
+    const reponse = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voixId}`, {
+      method: "POST",
+      headers: {
+        "xi-api-key": process.env.ELEVENLABS_API_KEY,
+        "Content-Type": "application/json",
+        Accept: "audio/mpeg",
+      },
+      body: JSON.stringify({ text: texte, model_id: "eleven_multilingual_v2" }),
+    });
+
+    if (reponse.ok) {
+      voixEnCache = voixId;
+      return { ok: true, audio: await reponse.arrayBuffer() };
+    }
+
+    dernierDetail = await reponse.text();
+    if (voixEnCache === voixId) {
+      voixEnCache = null;
+    }
+
+    // Une voix réservée aux offres payantes : on tente la suivante.
+    // Toute autre erreur (quota épuisé, clé invalide) ne se règle pas
+    // en changeant de voix, inutile d'insister.
+    if (dernierDetail.indexOf("paid_plan_required") === -1) {
+      break;
+    }
   }
 
-  const donnees = await reponse.json();
-  const voix = (donnees.voices || [])[0];
-
-  if (!voix) {
-    throw new Error("Aucune voix disponible sur ce compte ElevenLabs.");
-  }
-
-  voixEnCache = voix.voice_id;
-  return voixEnCache;
+  return { ok: false, details: dernierDetail };
 }
 
 const SYSTEM_PROMPT = `Tu es un professeur bienveillant qui aide un locuteur wolof à apprendre l'anglais.
@@ -123,30 +167,13 @@ module.exports = async function handler(req, res) {
     const texteAnglais = reponseLLM.split("|")[0].replace(/^EN:\s*/i, "").trim();
 
     // 3. TTS : texte anglais -> audio (ElevenLabs)
-    const voixId = await obtenirVoixDisponible();
-    const ttsUrl = `https://api.elevenlabs.io/v1/text-to-speech/${voixId}`;
+    const resultatTts = await synthetiser(texteAnglais);
 
-    const ttsResponse = await fetch(ttsUrl, {
-      method: "POST",
-      headers: {
-        "xi-api-key": process.env.ELEVENLABS_API_KEY,
-        "Content-Type": "application/json",
-        Accept: "audio/mpeg",
-      },
-      body: JSON.stringify({
-        text: texteAnglais,
-        model_id: "eleven_multilingual_v2",
-      }),
-    });
-
-    if (!ttsResponse.ok) {
-      const errText = await ttsResponse.text();
-      voixEnCache = null; // la voix mémorisée n'est plus valable, on redétectera
-      return res.status(502).json({ error: "Échec TTS (ElevenLabs)", details: errText });
+    if (!resultatTts.ok) {
+      return res.status(502).json({ error: "Échec TTS (ElevenLabs)", details: resultatTts.details });
     }
 
-    const ttsArrayBuffer = await ttsResponse.arrayBuffer();
-    const audioAnglaisBase64 = Buffer.from(ttsArrayBuffer).toString("base64");
+    const audioAnglaisBase64 = Buffer.from(resultatTts.audio).toString("base64");
 
     return res.status(200).json({
       transcriptionWolof,
