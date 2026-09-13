@@ -82,8 +82,9 @@
       color: var(--text-dim);
     }
 
-    #btnReset {
-      flex: none;
+    .actions { display: flex; gap: 7px; flex: none; }
+
+    .btn-entete {
       background: none;
       border: 1px solid var(--card-border);
       color: var(--text-dim);
@@ -93,9 +94,14 @@
       font-family: var(--font);
       cursor: pointer;
       transition: color 0.2s, border-color 0.2s;
+      -webkit-tap-highlight-color: transparent;
     }
 
-    #btnReset:active { color: var(--text); border-color: var(--accent); }
+    .btn-entete:active { color: var(--text); border-color: var(--accent); }
+
+    #btnVoix { font-size: 15px; line-height: 1; padding: 7px 10px; }
+
+    #btnVoix.actif { border-color: var(--accent); color: var(--accent); }
 
     /* ---------- Fil de conversation ---------- */
     #fil {
@@ -378,7 +384,10 @@
           <p>Sa coach anglais, ci wolof</p>
         </div>
       </div>
-      <button id="btnReset" type="button">Recommencer</button>
+      <div class="actions">
+        <button id="btnVoix" class="btn-entete actif" type="button" aria-label="Couper la voix du coach">🔊</button>
+        <button id="btnReset" class="btn-entete" type="button">Recommencer</button>
+      </div>
     </header>
 
     <main id="fil">
@@ -437,6 +446,7 @@
     var roue = document.getElementById("roue");
     var etatEl = document.getElementById("etat");
     var btnReset = document.getElementById("btnReset");
+    var btnVoix = document.getElementById("btnVoix");
 
     /* ==================================================================
        3. ÉTAT
@@ -450,10 +460,19 @@
     var arretAuto = null;
     var debut = 0;
     var conversation = charger();
+    var voixActive = chargerVoix();
 
     /* ==================================================================
        4. MÉMOIRE DE LA CONVERSATION
        ================================================================== */
+
+    function chargerVoix() {
+      try {
+        return localStorage.getItem("wolofglish.voix") !== "0";
+      } catch (err) {
+        return true;
+      }
+    }
 
     function charger() {
       try {
@@ -520,7 +539,7 @@
       if ("speechSynthesis" in window && tour.coach) {
         var ecouter = creer("button", "ecouter", "🔊 Écouter en wolof");
         ecouter.addEventListener("click", function () {
-          parler(tour.coach, "fr-FR", 0.95);
+          parler(tour.coach, "fr-FR", 0.95);   // toujours audible, même voix coupée
         });
         dit.appendChild(ecouter);
       }
@@ -582,8 +601,12 @@
 
     var audioEnCours = null;
 
-    function parler(texte, langue, vitesse) {
-      if (!("speechSynthesis" in window) || !texte) return;
+    function parler(texte, langue, vitesse, ensuite) {
+      if (!("speechSynthesis" in window) || !texte) {
+        if (ensuite) ensuite();
+        return;
+      }
+
       var enonce = new SpeechSynthesisUtterance(texte);
       enonce.lang = langue;
       enonce.rate = vitesse || 1;
@@ -594,8 +617,45 @@
       });
       if (voix.length > 0) enonce.voice = voix[0];
 
+      // On enchaîne à la fin, ou tout de suite si la synthèse échoue,
+      // pour que le wolof et l'anglais ne se coupent jamais la parole.
+      var suivi = false;
+      function poursuivre() {
+        if (suivi) return;
+        suivi = true;
+        if (ensuite) ensuite();
+      }
+      enonce.onend = poursuivre;
+      enonce.onerror = poursuivre;
+
       window.speechSynthesis.cancel();
       window.speechSynthesis.speak(enonce);
+    }
+
+    // Le wolof n'est synthétisé par aucun fournisseur. L'orthographe wolof
+    // suivant de près les conventions françaises, une voix française en donne
+    // une approximation compréhensible. Réglable par l'interrupteur d'entête.
+    function parlerWolof(texte, ensuite) {
+      if (!voixActive) {
+        if (ensuite) ensuite();
+        return;
+      }
+      parler(texte, "fr-FR", 0.95, ensuite);
+    }
+
+    // iOS n'autorise la synthèse qu'après un geste de l'utilisateur : on la
+    // débloque dès le premier appui sur le micro, avant tout appel réseau.
+    var voixDebloquee = false;
+    function debloquerVoix() {
+      if (voixDebloquee || !("speechSynthesis" in window)) return;
+      voixDebloquee = true;
+      try {
+        var vide = new SpeechSynthesisUtterance(" ");
+        vide.volume = 0;
+        window.speechSynthesis.speak(vide);
+      } catch (err) {
+        // Sans importance : la voix se contentera du bouton manuel.
+      }
     }
 
     function jouerAnglais(tour) {
@@ -859,7 +919,15 @@
           dire("Wax ma ci wolof");
           descendre();
 
-          if (tourCoach.anglais) jouerAnglais(tourCoach);
+          // Le coach répond à voix haute : son wolof d'abord, puis la
+          // phrase anglaise, l'une après l'autre. L'interrupteur d'entête
+          // fait taire les deux ; les boutons de chaque message restent
+          // toujours disponibles.
+          if (voixActive) {
+            parlerWolof(tourCoach.coach, function () {
+              if (tourCoach.anglais) jouerAnglais(tourCoach);
+            });
+          }
         })
         .catch(function (err) {
           setEtat("repos");
@@ -873,8 +941,24 @@
        ================================================================== */
 
     micro.addEventListener("click", function () {
+      debloquerVoix();
       if (etat === "repos") demarrer();
       else if (etat === "enregistre") arreter();
+    });
+
+    btnVoix.addEventListener("click", function () {
+      voixActive = !voixActive;
+      try {
+        localStorage.setItem("wolofglish.voix", voixActive ? "1" : "0");
+      } catch (err) {
+        // Stockage indisponible : le réglage vaut pour cette session.
+      }
+      btnVoix.textContent = voixActive ? "🔊" : "🔇";
+      btnVoix.classList.toggle("actif", voixActive);
+      btnVoix.setAttribute("aria-label", voixActive ? "Couper la voix du coach" : "Activer la voix du coach");
+      if (!voixActive && window.speechSynthesis) window.speechSynthesis.cancel();
+      if (!voixActive && audioEnCours) audioEnCours.pause();
+      dire(voixActive ? "Le coach te répondra à voix haute" : "Le coach répondra par écrit");
     });
 
     btnReset.addEventListener("click", function () {
@@ -898,6 +982,9 @@
       window.speechSynthesis.getVoices();
       window.speechSynthesis.addEventListener("voiceschanged", function () {});
     }
+
+    btnVoix.textContent = voixActive ? "🔊" : "🔇";
+    btnVoix.classList.toggle("actif", voixActive);
 
     setEtat("repos");
     redessiner();
