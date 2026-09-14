@@ -6,8 +6,12 @@
 // l'impression d'un coach lent. Le texte part maintenant immédiatement, la
 // voix le rejoint.
 //
-// Requête (POST) : { "texte": "...", "langue": "wolof" | "anglais" }
+// Requête (POST) :
+//   { "texte": "...", "secours": "<orthographe réécrite>", "langue": "wolof" | "anglais" }
 // Réponse : l'audio brut (audio/wav ou audio/mpeg), ou un JSON d'erreur.
+//
+// L'en-tête X-Voix-Source indique laquelle des voix a répondu, ce qui rend
+// diagnosticable un basculement silencieux vers le repli.
 
 const voixGemini = require("../lib/voix");
 const elevenlabs = require("../lib/elevenlabs");
@@ -19,8 +23,9 @@ module.exports = async function handler(req, res) {
     return res.status(405).json({ error: "Méthode non autorisée, utilise POST." });
   }
 
-  const { texte, langue } = req.body || {};
+  const { texte, secours, langue } = req.body || {};
   const contenu = String(texte || "").trim();
+  const contenuSecours = String(secours || "").trim();
 
   if (!contenu) {
     return res.status(400).json({ error: "Champ 'texte' manquant." });
@@ -32,23 +37,38 @@ module.exports = async function handler(req, res) {
 
   try {
     let resultat = null;
+    let source = "";
 
     if (langue === "anglais") {
       // La voix d'ElevenLabs d'abord si le compte l'autorise, sinon Gemini.
       resultat = await elevenlabs.synthetiser(contenu);
+      source = "elevenlabs";
+
       if (!resultat.ok) {
         resultat = await voixGemini.synthetiser(
           contenu,
           "Read this English sentence clearly and slowly, for a language learner",
           process.env.GEMINI_VOIX_ANGLAISE || "Puck"
         );
+        source = "gemini";
       }
     } else {
+      // Gemini est la seule voix qui prononce réellement le wolof.
       resultat = await voixGemini.synthetiser(
         contenu,
         CONSIGNE_WOLOF,
         process.env.GEMINI_VOIX || "Kore"
       );
+      source = "gemini";
+
+      // S'il flanche — son quota est bien plus serré que celui du texte —
+      // ElevenLabs lit l'orthographe réécrite à la française. Moins juste
+      // qu'une vraie voix wolof, mais nettement meilleur que la synthèse
+      // du navigateur, qui était le repli précédent.
+      if (!resultat.ok && contenuSecours) {
+        resultat = await elevenlabs.synthetiser(contenuSecours);
+        source = "elevenlabs-secours";
+      }
     }
 
     if (!resultat.ok) {
@@ -63,6 +83,7 @@ module.exports = async function handler(req, res) {
     res.setHeader("Content-Type", resultat.type || "audio/wav");
     res.setHeader("Content-Length", String(resultat.audio.length));
     res.setHeader("Cache-Control", "no-store");
+    res.setHeader("X-Voix-Source", source);
     return res.end(resultat.audio);
   } catch (err) {
     console.error("Erreur voix Wolofglish :", err);

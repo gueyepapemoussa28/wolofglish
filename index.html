@@ -82,6 +82,12 @@
       color: var(--text-dim);
     }
 
+    /* Le niveau estimé et ce qui reste à revoir : discret, jamais un verdict. */
+    #badge {
+      color: var(--accent);
+      font-weight: 600;
+    }
+
     .actions { display: flex; gap: 7px; flex: none; }
 
     .btn-entete {
@@ -489,7 +495,8 @@
         <div class="pastille">🎙️</div>
         <div>
           <h1>Wolofglish</h1>
-          <p>Sa coach anglais, ci wolof</p>
+          <p id="badge" hidden></p>
+          <p id="baseline">Sa coach anglais, ci wolof</p>
         </div>
       </div>
       <div class="actions">
@@ -546,6 +553,7 @@
     var MAX_DUREE_MS = 45000;   // arrêt automatique de l'enregistrement
     var TAUX_CIBLE = 16000;     // fréquence native des modèles de parole
     var CLE_STOCKAGE = "wolofglish.conversation.v1";
+    var CLE_PROFIL = "wolofglish.profil.v1";
     var MAX_TOURS_MEMOIRE = 12; // ce que le coach garde en tête
 
     /* ==================================================================
@@ -560,6 +568,8 @@
     var etatEl = document.getElementById("etat");
     var btnReset = document.getElementById("btnReset");
     var btnVoix = document.getElementById("btnVoix");
+    var badge = document.getElementById("badge");
+    var baseline = document.getElementById("baseline");
 
     /* ==================================================================
        3. ÉTAT
@@ -576,10 +586,48 @@
     var debut = 0;
     var conversation = charger();
     var voixActive = chargerReglageVoix();
+    var profil = chargerProfil();
 
     /* ==================================================================
        4. MÉMOIRE DE LA CONVERSATION
        ================================================================== */
+
+    // Le profil de l'apprenant — niveau, fautes qui reviennent, structures
+    // acquises — vit sur son appareil et accompagne chaque échange. Le
+    // serveur ne garde rien : sa progression lui appartient.
+    function chargerProfil() {
+      try {
+        var brut = localStorage.getItem(CLE_PROFIL);
+        var lu = brut ? JSON.parse(brut) : null;
+        return lu && typeof lu === "object" ? lu : null;
+      } catch (err) {
+        return null;
+      }
+    }
+
+    function sauverProfil() {
+      try {
+        localStorage.setItem(CLE_PROFIL, JSON.stringify(profil));
+      } catch (err) {
+        // Stockage indisponible : le profil vaut pour cette session.
+      }
+    }
+
+    var NIVEAUX = { debutant: "Débutant", intermediaire: "Intermédiaire", avance: "Avancé" };
+
+    function afficherNiveau() {
+      var niveau = profil && profil.niveau ? NIVEAUX[profil.niveau] : null;
+      var fautes = profil && Array.isArray(profil.fautes) ? profil.fautes.length : 0;
+
+      if (!niveau) {
+        badge.hidden = true;
+        baseline.hidden = false;
+        return;
+      }
+      badge.hidden = false;
+      baseline.hidden = true;
+      badge.textContent = fautes > 0 ? niveau + " · " + fautes + " à revoir" : niveau;
+    }
 
     function chargerReglageVoix() {
       try {
@@ -779,13 +827,13 @@
     }
 
     // Demande la voix au serveur. Renvoie une URL lisible, ou null.
-    function chargerVoix(texte, langue) {
+    function chargerVoix(texte, langue, secours) {
       if (!texte) return Promise.resolve(null);
 
       return fetch(API_VOIX, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ texte: texte, langue: langue })
+        body: JSON.stringify({ texte: texte, langue: langue, secours: secours || "" })
       })
         .then(function (reponse) {
           return reponse.ok ? reponse.blob() : null;
@@ -831,7 +879,7 @@
     // l'orthographe réécrite — le wolof s'écrivant selon des conventions
     // proches du français, l'approximation reste compréhensible.
     function direWolof(texte, secours, ensuite, promesse) {
-      (promesse || chargerVoix(texte, "wolof")).then(function (url) {
+      (promesse || chargerVoix(texte, "wolof", secours)).then(function (url) {
         if (url) jouerUrl(url, ensuite);
         else parler(secours || texte, "fr-FR", 0.95, ensuite);
       });
@@ -1068,7 +1116,12 @@
             return fetch(API_URL, {
               method: "POST",
               headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ audioBase64: base64, mimeType: type, historique: memoire })
+              body: JSON.stringify({
+                audioBase64: base64,
+                mimeType: type,
+                historique: memoire,
+                profil: profil
+              })
             });
           });
         })
@@ -1102,6 +1155,12 @@
           conversation.push(tourCoach);
           blocCoach = afficherCoach(tourCoach);
 
+          if (donnees.profil) {
+            profil = donnees.profil;
+            sauverProfil();
+            afficherNiveau();
+          }
+
           sauver();
           setEtat("repos");
           dire("Wax ma ci wolof");
@@ -1120,7 +1179,7 @@
               if (signal) signal.hidden = true;
             }
 
-            var vWolof = chargerVoix(tourCoach.coach, "wolof");
+            var vWolof = chargerVoix(tourCoach.coach, "wolof", tourCoach.prononciation);
             var vAnglais = tourCoach.anglais
               ? chargerVoix(tourCoach.anglais, "anglais")
               : null;
@@ -1287,7 +1346,10 @@
       if (conversation.length === 0) return;
       if (!confirm("Effacer toute la conversation et repartir de zéro ?")) return;
       conversation = [];
+      profil = null;
       sauver();
+      sauverProfil();
+      afficherNiveau();
       if (window.speechSynthesis) window.speechSynthesis.cancel();
       if (audioEnCours) audioEnCours.pause();
       redessiner();
@@ -1308,6 +1370,7 @@
     btnVoix.textContent = voixActive ? "🔊" : "🔇";
     btnVoix.classList.toggle("actif", voixActive);
 
+    afficherNiveau();
     setEtat("repos");
     redessiner();
   })();
