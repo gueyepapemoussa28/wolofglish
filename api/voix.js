@@ -7,11 +7,7 @@
 // voix le rejoint.
 //
 // Requête (POST) :
-//   {
-//     "texte": "...", "secours": "<orthographe réécrite>",
-//     "langue": "wolof" | "anglais",
-//     "moteur": "sesame"   // facultatif : force un moteur, pour comparer
-//   }
+//   { "texte": "...", "secours": "<orthographe réécrite>", "langue": "wolof" | "anglais" }
 // Réponse : l'audio brut (audio/wav ou audio/mpeg), ou un JSON d'erreur.
 //
 // L'en-tête X-Voix-Source indique laquelle des voix a répondu, ce qui rend
@@ -19,7 +15,6 @@
 
 const voixGemini = require("../lib/voix");
 const elevenlabs = require("../lib/elevenlabs");
-const sesame = require("../lib/sesame");
 
 const CONSIGNE_WOLOF = "Dis ceci en wolof, chaleureusement, comme un ami qui encourage";
 
@@ -28,7 +23,7 @@ module.exports = async function handler(req, res) {
     return res.status(405).json({ error: "Méthode non autorisée, utilise POST." });
   }
 
-  const { texte, secours, langue, moteur } = req.body || {};
+  const { texte, secours, langue } = req.body || {};
   const contenu = String(texte || "").trim();
   const contenuSecours = String(secours || "").trim();
 
@@ -44,11 +39,7 @@ module.exports = async function handler(req, res) {
     let resultat = null;
     let source = "";
 
-    // Essai explicite d'un moteur, pour comparer sans rien changer par défaut.
-    if (moteur === "sesame") {
-      resultat = await sesame.synthetiser(contenu);
-      source = "sesame";
-    } else if (langue === "anglais") {
+    if (langue === "anglais") {
       // La voix d'ElevenLabs d'abord si le compte l'autorise, sinon Gemini.
       resultat = await elevenlabs.synthetiser(contenu);
       source = "elevenlabs";
