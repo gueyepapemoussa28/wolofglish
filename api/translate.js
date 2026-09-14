@@ -62,6 +62,31 @@ l'inverse. Ne termine pas systématiquement par une question ni par une phrase
 à répéter : laisse l'échange respirer. Le champ "anglais" doit rester VIDE la
 plupart du temps — tu ne le remplis que si une phrase s'impose vraiment.
 
+RÈGLE ABSOLUE : tu ne lui fais JAMAIS répéter une phrase anglaise sans lui
+avoir dit ce qu'elle veut dire en wolof. Répéter des sons dont on ignore le
+sens n'apprend rien et met mal à l'aise. Le sens d'abord, la répétition
+ensuite : « "I go to work" mooy "dama dem ci liggéey". Waxal ko. »
+
+════════════════════════════════════════════════════════════════
+UNE TRAME, POUR QU'IL NE SE PERDE PAS
+════════════════════════════════════════════════════════════════
+
+Une conversation sans direction désoriente. Tiens un FIL : un sujet à la fois,
+et on y reste.
+
+Au tout premier échange, ou quand un sujet s'épuise, propose-lui un terrain
+concret tiré de sa vie — se présenter, parler de son travail, commander au
+restaurant, prendre rendez-vous, accueillir un client — et annonce-le
+simplement en wolof, en une phrase.
+
+Ensuite tu creuses CE terrain. Tu ne sautes pas d'un sujet à l'autre. Tu ne
+changes de fil que s'il t'y emmène lui-même, ou si le sujet est épuisé — et
+dans ce cas tu le dis avant de passer à autre chose.
+
+Le champ "theme" porte le fil en cours, en wolof, en deux ou trois mots. Il
+s'affiche à l'écran pour qu'il sache toujours où il en est. Reprends le même
+d'un tour à l'autre tant que le sujet dure.
+
 ════════════════════════════════════════════════════════════════
 FAIRE CONSTRUIRE, PAS DONNER
 ════════════════════════════════════════════════════════════════
@@ -176,6 +201,7 @@ const FORMAT_JSON = `Réponds UNIQUEMENT par un objet JSON valide, sans texte au
   "prononciation": "<la même réplique en orthographe française, pour la voix>",
   "anglais": "<la phrase anglaise de ce tour, s'il y en a une ; chaîne VIDE si c'est à lui de la construire seul>",
   "nuance": "<explication brève en wolof, SEULEMENT s'il l'a demandée ou si une faute revient ; sinon chaîne vide>",
+  "theme": "<le fil en cours, en wolof, deux ou trois mots — le même tant que le sujet dure>",
   "profil": {
     "niveau": "debutant | intermediaire | avance",
     "fautes": ["<ses fautes récurrentes, forme fautive puis forme juste>"],
@@ -276,6 +302,7 @@ function extraireReponse(analyse) {
     prononciation: String(analyse.prononciation || "").trim(),
     anglais: String(analyse.anglais || "").trim(),
     nuance: String(analyse.nuance || "").trim(),
+    theme: String(analyse.theme || "").trim().slice(0, 60),
     profil: analyse.profil && typeof analyse.profil === "object" ? analyse.profil : null,
   };
 }
@@ -385,6 +412,7 @@ module.exports = async function handler(req, res) {
       prononciation: echange.prononciation || echange.coach,
       anglais: echange.anglais,
       nuance: echange.nuance,
+      theme: echange.theme,
       doute: echange.doute,
       profil: echange.profil,
     });

@@ -109,6 +109,27 @@
 
     #btnVoix.actif { border-color: var(--accent); color: var(--accent); }
 
+    /* Le sujet en cours, pour ne pas se perdre dans la conversation. */
+    .trame {
+      flex: none;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 9px 18px;
+      background: var(--accent-soft);
+      border-bottom: 1px solid var(--card-border);
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--accent);
+    }
+
+    .trame-puce {
+      width: 6px; height: 6px;
+      border-radius: 50%;
+      background: var(--accent);
+      flex: none;
+    }
+
     /* ---------- Fil de conversation ---------- */
     #fil {
       flex: 1;
@@ -608,6 +629,11 @@
       </div>
     </header>
 
+    <div id="trame" class="trame" hidden>
+      <span class="trame-puce"></span>
+      <span id="trameTexte"></span>
+    </div>
+
     <main id="fil">
       <div class="accueil" id="accueil">
         <div class="grand">👋</div>
@@ -678,6 +704,8 @@
     var btnReset = document.getElementById("btnReset");
     var btnVoix = document.getElementById("btnVoix");
     var badge = document.getElementById("badge");
+    var trame = document.getElementById("trame");
+    var trameTexte = document.getElementById("trameTexte");
     var appelBtn = document.getElementById("appel");
     var temoin = document.getElementById("temoin");
     var baseline = document.getElementById("baseline");
@@ -725,6 +753,15 @@
     }
 
     var NIVEAUX = { debutant: "Débutant", intermediaire: "Intermédiaire", avance: "Avancé" };
+
+    function afficherTrame() {
+      var sujet = conversation.length ? conversation[conversation.length - 1].theme : "";
+      for (var i = conversation.length - 1; i >= 0 && !sujet; i--) {
+        sujet = conversation[i].theme || "";
+      }
+      trame.hidden = !sujet;
+      trameTexte.textContent = sujet || "";
+    }
 
     function afficherNiveau() {
       var niveau = profil && profil.niveau ? NIVEAUX[profil.niveau] : null;
@@ -996,9 +1033,14 @@
         .then(function (reponse) {
           if (!reponse.ok) return null;
           var source = reponse.headers.get("X-Voix-Source") || "";
+          var repli = reponse.headers.get("X-Voix-Repli") || "";
           return reponse.blob().then(function (blob) {
             if (!blob || blob.size <= 500) return null;
-            return { url: URL.createObjectURL(blob), source: source };
+            return {
+              url: URL.createObjectURL(blob),
+              source: source,
+              repli: repli ? decodeURIComponent(repli) : ""
+            };
           });
         })
         .catch(function () {
@@ -1330,7 +1372,8 @@
             coach: donnees.coach,
             prononciation: donnees.prononciation || donnees.coach,
             anglais: donnees.anglais,
-            nuance: donnees.nuance
+            nuance: donnees.nuance,
+            theme: donnees.theme || ""
           };
           conversation.push(tourCoach);
           blocCoach = afficherCoach(tourCoach);
@@ -1342,6 +1385,7 @@
           }
 
           sauver();
+          afficherTrame();
           setEtat("repos");
           descendre();
           // En appel, c'est la fin de sa réponse qui rendra la parole.
@@ -1365,25 +1409,29 @@
             if (signal) signal.hidden = false;
 
             var vWolof = chargerVoix(tourCoach.coach, "wolof", tourCoach.prononciation);
-            var vAnglais = tourCoach.anglais
-              ? chargerVoix(tourCoach.anglais, "anglais")
-              : null;
-
             vWolof.then(function (voix) {
               masquerSignal();
               // « gemini » = la vraie voix wolof. Toute autre source est un repli.
               var vraieVoix = voix && voix.source && voix.source.indexOf("gemini") === 0;
               if (blocCoach && blocCoach.signalSecours) {
                 blocCoach.signalSecours.hidden = vraieVoix;
+                if (!vraieVoix && voix && voix.repli) {
+                  blocCoach.signalSecours.textContent =
+                    "⚠ voix wolof indisponible — " + voix.repli;
+                }
               }
             }, masquerSignal);
 
             if (appel.actif) phaseAppel("repond");
 
+            // Une seule voix par tour. Enchaîner la voix wolof puis la voix
+            // anglaise à chaque réplique créait une alternance de timbres
+            // déroutante. La phrase anglaise se trouve déjà dans ce que dit le
+            // coach ; pour l'entendre isolée et bien articulée, le bouton
+            // « Écouter la prononciation » reste là.
             direWolof(tourCoach.coach, tourCoach.prononciation, function () {
               masquerSignal();
-              if (tourCoach.anglais) direAnglais(tourCoach.anglais, finLecture, vAnglais);
-              else finLecture();
+              finLecture();
             }, vWolof);
           } else {
             finLecture();
@@ -1787,6 +1835,7 @@
       if (appel.actif) terminerAppel();
       conversation = [];
       profil = null;
+      trame.hidden = true;
       sauver();
       sauverProfil();
       afficherNiveau();
@@ -1812,6 +1861,7 @@
     btnVoix.classList.toggle("actif", voixActive);
 
     afficherNiveau();
+    afficherTrame();
     setEtat("repos");
     redessiner();
   })();

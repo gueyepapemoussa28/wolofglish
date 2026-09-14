@@ -16,7 +16,11 @@
 const voixGemini = require("../lib/voix");
 const elevenlabs = require("../lib/elevenlabs");
 
-const CONSIGNE_WOLOF = "Dis ceci en wolof, chaleureusement, comme un ami qui encourage";
+// Le ton demandé se retrouve dans la voix : « chaleureusement, comme un ami
+// qui encourage » produisait un enthousiasme fatigant à l'usage.
+const CONSIGNE_WOLOF =
+  "Lis ceci en wolof d'une voix calme, posée et naturelle, comme quelqu'un qui " +
+  "parle à un ami. Ton neutre, sans exagération, sans enthousiasme forcé";
 
 module.exports = async function handler(req, res) {
   if (req.method !== "POST") {
@@ -38,6 +42,7 @@ module.exports = async function handler(req, res) {
   try {
     let resultat = null;
     let source = "";
+    let raisonRepli = "";
 
     if (langue === "anglais") {
       // La voix d'ElevenLabs d'abord si le compte l'autorise, sinon Gemini.
@@ -66,6 +71,8 @@ module.exports = async function handler(req, res) {
       // qu'une vraie voix wolof, mais nettement meilleur que la synthèse
       // du navigateur, qui était le repli précédent.
       if (!resultat.ok && contenuSecours) {
+        // On garde la raison de l'échec : sans elle, le repli masque la panne.
+        raisonRepli = String(resultat.details || "inconnue").slice(0, 200);
         resultat = await elevenlabs.synthetiser(contenuSecours);
         source = "elevenlabs-secours";
       }
@@ -84,6 +91,9 @@ module.exports = async function handler(req, res) {
     res.setHeader("Content-Length", String(resultat.audio.length));
     res.setHeader("Cache-Control", "no-store");
     res.setHeader("X-Voix-Source", source);
+    if (raisonRepli) {
+      res.setHeader("X-Voix-Repli", encodeURIComponent(raisonRepli));
+    }
     return res.end(resultat.audio);
   } catch (err) {
     console.error("Erreur voix Wolofglish :", err);
