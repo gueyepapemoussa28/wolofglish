@@ -50,7 +50,7 @@ module.exports = async function handler(req, res) {
           "Read this English sentence clearly and slowly, for a language learner",
           process.env.GEMINI_VOIX_ANGLAISE || "Puck"
         );
-        source = "gemini";
+        source = "gemini:" + (resultat.modele || "?");
       }
     } else {
       // Gemini est la seule voix qui prononce réellement le wolof.
@@ -59,7 +59,7 @@ module.exports = async function handler(req, res) {
         CONSIGNE_WOLOF,
         process.env.GEMINI_VOIX || "Kore"
       );
-      source = "gemini";
+      source = "gemini:" + (resultat.modele || "?");
 
       // S'il flanche — son quota est bien plus serré que celui du texte —
       // ElevenLabs lit l'orthographe réécrite à la française. Moins juste
