@@ -84,7 +84,7 @@ module.exports = async function handler(req, res) {
       // Le navigateur lira le texte lui-même : ce n'est pas une panne bloquante.
       return res.status(502).json({
         error: "Voix indisponible",
-        details: String(resultat.details || "").slice(0, 400),
+        details: String(resultat.details || "").slice(0, 900),
       });
     }
 
