@@ -22,6 +22,7 @@
 //   }
 
 const { demanderJson, MESSAGE_QUOTA } = require("../lib/gemini");
+const { decrireLexique } = require("../lib/lexique");
 
 // Repli historique : Hugging Face ne sert aucun modèle wolof, mais reste
 // utilisable si Gemini refuse l'audio tout en acceptant le texte.
@@ -311,7 +312,9 @@ function extraireReponse(analyse) {
 // Whisper ne connaît pas le wolof — Gemini, si.
 async function interrogerGemini(parts, historique, profil) {
   const resultat = await demanderJson(
-    CONSIGNE_COACH + "\n\n" + decrireProfil(profil) + "\n\n" + FORMAT_JSON,
+    [CONSIGNE_COACH, decrireLexique(), decrireProfil(profil), FORMAT_JSON]
+      .filter(Boolean)
+      .join("\n\n"),
     [...construireHistorique(historique), { role: "user", parts }]
   );
 

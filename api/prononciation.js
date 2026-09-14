@@ -14,6 +14,7 @@
 //   }
 
 const { demanderJson, MESSAGE_QUOTA } = require("../lib/gemini");
+const { decrireLexique } = require("../lib/lexique");
 
 const CONSIGNE = `Tu es un coach d'anglais sénégalais, chaleureux, qui parle wolof.
 
@@ -93,7 +94,7 @@ module.exports = async function handler(req, res) {
 
   try {
     const resultat = await demanderJson(
-      CONSIGNE,
+      [CONSIGNE, decrireLexique()].filter(Boolean).join("\n\n"),
       [
         {
           role: "user",
