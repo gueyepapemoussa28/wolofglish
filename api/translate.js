@@ -6,7 +6,8 @@
 //     "audioBase64": "<audio encodé en base64>",
 //     "mimeType": "audio/wav",
 //     "historique": [ { "role": "user" | "coach", "texte": "..." }, ... ],
-//     "profil": { "niveau": "...", "fautes": [...], "acquis": [...] }
+//     "profil": { "niveau": "...", "fautes": [...], "acquis": [...] },
+//     "rejete": "<transcription que l'apprenant vient de refuser>"
 //   }
 //
 // Réponse :
@@ -155,8 +156,9 @@ qu'il arrive à dire.`;
 
 const FORMAT_JSON = `Réponds UNIQUEMENT par un objet JSON valide, sans texte autour :
 {
-  "wolof": "<transcription de ce qu'il vient de dire, écrite AU SON — voir plus bas>",
-  "coach": "<ta réplique en wolof — COURTE, une ou deux phrases>",
+  "wolof": "<UNIQUEMENT les mots que tu as réellement entendus — voir plus bas>",
+  "doute": <true si tu n'es pas sûr d'avoir bien entendu, false sinon>,
+  "coach": "<ta réplique en wolof — COURTE, une ou deux phrases. JAMAIS le même texte que \"wolof\">",
   "prononciation": "<la même réplique en orthographe française, pour la voix>",
   "anglais": "<la phrase anglaise de ce tour, s'il y en a une ; chaîne VIDE si c'est à lui de la construire seul>",
   "nuance": "<explication brève en wolof, SEULEMENT s'il l'a demandée ou si une faute revient ; sinon chaîne vide>",
@@ -174,6 +176,23 @@ c'est le cas le plus fréquent, et le plus utile.
 Mets à jour "profil" à chaque tour : reprends celui qu'on te transmet, ajoute
 ce que tu viens d'observer, retire des "fautes" ce qu'il a corrigé durablement.
 Garde au plus six entrées par liste, les plus utiles.
+
+LA RÈGLE ABSOLUE DE LA TRANSCRIPTION
+Le champ "wolof" contient CE QUE TU AS ENTENDU, et rien d'autre. Jamais ce que
+tu supposes, jamais ce qui ferait une belle phrase, jamais ta propre réplique.
+
+S'il a dit quatre mots, tu écris quatre mots. N'allonge JAMAIS. Ne complète
+JAMAIS. Une transcription courte et fidèle vaut infiniment mieux qu'une longue
+phrase inventée : lui la relit, et s'il ne reconnaît pas ses mots, il perd
+confiance en toi.
+
+Quand le son est confus, tu as deux devoirs :
+  1. mettre true dans "doute" ;
+  2. le lui demander dans ta réplique, au lieu de faire semblant d'avoir compris.
+     « Ndax "bakh na" nga wax ? » vaut mieux que de partir sur une supposition.
+
+Ne devine pas. Demander n'est pas un échec, c'est ce que fait tout interlocuteur
+qui n'a pas bien entendu.
 
 COMMENT ÉCRIRE LE WOLOF À L'ÉCRAN
 Le champ "wolof" est lu par l'apprenant. N'utilise PAS l'orthographe officielle
@@ -238,6 +257,7 @@ function construireHistorique(historique) {
 function extraireReponse(analyse) {
   return {
     wolof: String(analyse.wolof || "").trim(),
+    doute: analyse.doute === true,
     coach: String(analyse.coach || "").trim(),
     prononciation: String(analyse.prononciation || "").trim(),
     anglais: String(analyse.anglais || "").trim(),
@@ -271,7 +291,7 @@ module.exports = async function handler(req, res) {
     return res.status(405).json({ error: "Méthode non autorisée, utilise POST." });
   }
 
-  const { audioBase64, mimeType, historique, profil } = req.body || {};
+  const { audioBase64, mimeType, historique, profil, rejete } = req.body || {};
   if (!audioBase64) {
     return res.status(400).json({ error: "Champ 'audioBase64' manquant dans le corps de la requête." });
   }
@@ -287,9 +307,19 @@ module.exports = async function handler(req, res) {
 
   try {
     // 1. Gemini écoute le wolof et répond en coach, en un seul appel.
+    // Quand il rejette une transcription, on le dit au modèle : sans cela il
+    // réentend la même chose et propose la même erreur.
+    const amorce = rejete
+      ? 'Tu avais transcrit « ' + String(rejete).slice(0, 300) + ' », et il te dit ' +
+        "que ce n'est PAS ce qu'il a dit. Il répète maintenant la même phrase. " +
+        "Écoute autrement, syllabe par syllabe, et propose une transcription " +
+        "DIFFÉRENTE de la précédente. Si tu n'es toujours pas sûr, dis-le-lui " +
+        "franchement et demande-lui de redire plus lentement."
+      : "Voici ce que je te dis maintenant :";
+
     let echange = await interrogerGemini(
       [
-        { text: "Voici ce que je te dis maintenant :" },
+        { text: amorce },
         { inline_data: { mime_type: mimeType || "audio/wav", data: audioBase64 } },
       ],
       historique,
@@ -341,6 +371,7 @@ module.exports = async function handler(req, res) {
       prononciation: echange.prononciation || echange.coach,
       anglais: echange.anglais,
       nuance: echange.nuance,
+      doute: echange.doute,
       profil: echange.profil,
     });
   } catch (err) {

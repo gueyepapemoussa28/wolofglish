@@ -140,6 +140,30 @@
       color: var(--text);
     }
 
+    .moi.doute {
+      border-color: rgba(229, 107, 111, 0.45);
+      background: rgba(229, 107, 111, 0.1);
+    }
+
+    .corriger {
+      display: block;
+      margin-top: 8px;
+      background: none;
+      border: none;
+      padding: 0;
+      color: var(--text-dim);
+      font-size: 12px;
+      font-family: var(--font);
+      text-decoration: underline;
+      cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    .corriger.encours {
+      color: var(--red);
+      animation: battement 1.3s ease-in-out infinite;
+    }
+
     /* Réponse du coach */
     .coach { align-self: flex-start; width: 100%; }
 
@@ -679,8 +703,49 @@
       return el;
     }
 
-    function afficherMoi(texteWolof) {
-      var bulle = creer("div", "bulle moi", texteWolof);
+    function afficherMoi(tour) {
+      var texte = typeof tour === "string" ? tour : tour.wolof;
+      var bulle = creer("div", "bulle moi");
+      bulle.appendChild(document.createTextNode(texte));
+
+      if (tour && tour.doute) {
+        bulle.classList.add("doute");
+      }
+
+      // Le coach se trompe parfois d'écoute. Plutôt que de le laisser partir
+      // sur une phrase qu'on n'a pas dite, on peut la lui refuser : il
+      // réécoutera en sachant que sa première lecture était fausse.
+      if (tour && typeof tour !== "string") {
+        var corriger = creer("button", "corriger", tour.doute
+          ? "Ce n'est pas ça ? Redis-le"
+          : "Ce n'est pas ce que j'ai dit");
+
+        corriger.addEventListener("click", function () {
+          if (etat === "enregistre" && boutonEssai === corriger) {
+            arreter("Coach bi dafay déglu…");
+            return;
+          }
+          if (etat !== "repos") return;
+
+          debloquerVoix();
+          if (window.speechSynthesis) window.speechSynthesis.cancel();
+          if (audioEnCours) audioEnCours.pause();
+
+          boutonEssai = corriger;
+          corriger.textContent = "⏹ J'ai fini";
+          corriger.classList.add("encours");
+
+          demarrer(function (blob) {
+            corriger.textContent = "Ce n'est pas ce que j'ai dit";
+            corriger.classList.remove("encours");
+            boutonEssai = null;
+            reprendre(blob, tour.wolof);
+          });
+        });
+
+        bulle.appendChild(corriger);
+      }
+
       fil.appendChild(bulle);
       return bulle;
     }
@@ -794,7 +859,7 @@
       });
       accueil.hidden = conversation.length > 0;
       conversation.forEach(function (tour) {
-        if (tour.role === "moi") afficherMoi(tour.wolof);
+        if (tour.role === "moi") afficherMoi(tour);
         else afficherCoach(tour);
       });
       descendre();
@@ -1099,7 +1164,21 @@
        9. ÉCHANGE AVEC LE COACH
        ================================================================== */
 
-    function envoyer(blob) {
+    // Rejoue le dernier tour : le coach avait mal entendu, on retire sa
+    // réponse et sa mauvaise transcription avant de lui redonner la parole.
+    function reprendre(blob, transcriptionRefusee) {
+      while (conversation.length > 0 && conversation[conversation.length - 1].role === "coach") {
+        conversation.pop();
+      }
+      if (conversation.length > 0 && conversation[conversation.length - 1].role === "moi") {
+        conversation.pop();
+      }
+      sauver();
+      redessiner();
+      envoyer(blob, transcriptionRefusee);
+    }
+
+    function envoyer(blob, transcriptionRefusee) {
       if (!blob || blob.size < 1000) {
         setEtat("repos");
         dire("Je n'ai rien entendu, réessaie");
@@ -1107,6 +1186,7 @@
       }
 
       var memoire = historiquePourCoach();
+      if (transcriptionRefusee) dire("Coach bi dafay déglu bu baax…");
 
       convertirEnWav(blob)
         .catch(function () { return blob; })
@@ -1120,7 +1200,8 @@
                 audioBase64: base64,
                 mimeType: type,
                 historique: memoire,
-                profil: profil
+                profil: profil,
+                rejete: transcriptionRefusee || ""
               })
             });
           });
@@ -1140,9 +1221,9 @@
         .then(function (donnees) {
           accueil.hidden = true;
 
-          var monTour = { role: "moi", wolof: donnees.wolof };
+          var monTour = { role: "moi", wolof: donnees.wolof, doute: donnees.doute === true };
           conversation.push(monTour);
-          afficherMoi(donnees.wolof);
+          afficherMoi(monTour);
 
           var blocCoach = null;
           var tourCoach = {
