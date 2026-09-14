@@ -209,6 +209,17 @@
 
     .coach-dit .ecouter:active { color: var(--text); }
 
+    /* Quand la voix wolof est indisponible, on le dit au lieu de laisser
+       croire que le coach s'est mis à parler anglais. */
+    .voix-secours {
+      margin-top: 8px;
+      font-size: 11px;
+      color: var(--red);
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+
     /* La voix met quelques secondes à arriver : on le montre, plutôt que
        de laisser un silence que rien n'explique. */
     .vocalise {
@@ -858,6 +869,12 @@
       dit.appendChild(signal);
       bloc.signalVoix = signal;
 
+      var secours = creer("div", "voix-secours");
+      secours.hidden = true;
+      secours.textContent = "⚠ voix wolof indisponible — lue par la voix anglaise";
+      dit.appendChild(secours);
+      bloc.signalSecours = secours;
+
       bloc.appendChild(dit);
 
       if (tour.anglais) {
@@ -977,10 +994,12 @@
         body: JSON.stringify({ texte: texte, langue: langue, secours: secours || "" })
       })
         .then(function (reponse) {
-          return reponse.ok ? reponse.blob() : null;
-        })
-        .then(function (blob) {
-          return blob && blob.size > 500 ? URL.createObjectURL(blob) : null;
+          if (!reponse.ok) return null;
+          var source = reponse.headers.get("X-Voix-Source") || "";
+          return reponse.blob().then(function (blob) {
+            if (!blob || blob.size <= 500) return null;
+            return { url: URL.createObjectURL(blob), source: source };
+          });
         })
         .catch(function () {
           return null; // le navigateur lira lui-même
@@ -1020,15 +1039,15 @@
     // l'orthographe réécrite — le wolof s'écrivant selon des conventions
     // proches du français, l'approximation reste compréhensible.
     function direWolof(texte, secours, ensuite, promesse) {
-      (promesse || chargerVoix(texte, "wolof", secours)).then(function (url) {
-        if (url) jouerUrl(url, ensuite);
+      (promesse || chargerVoix(texte, "wolof", secours)).then(function (voix) {
+        if (voix) jouerUrl(voix.url, ensuite);
         else parler(secours || texte, "fr-FR", 0.95, ensuite);
       });
     }
 
     function direAnglais(texte, ensuite, promesse) {
-      (promesse || chargerVoix(texte, "anglais")).then(function (url) {
-        if (url) jouerUrl(url, ensuite);
+      (promesse || chargerVoix(texte, "anglais")).then(function (voix) {
+        if (voix) jouerUrl(voix.url, ensuite);
         else parler(texte, "en-US", 0.9, ensuite);
       });
     }
@@ -1350,7 +1369,15 @@
               ? chargerVoix(tourCoach.anglais, "anglais")
               : null;
 
-            vWolof.then(masquerSignal, masquerSignal);
+            vWolof.then(function (voix) {
+              masquerSignal();
+              // « gemini » = la vraie voix wolof. Toute autre source est un repli.
+              var vraieVoix = voix && voix.source && voix.source.indexOf("gemini") === 0;
+              if (blocCoach && blocCoach.signalSecours) {
+                blocCoach.signalSecours.hidden = vraieVoix;
+              }
+            }, masquerSignal);
+
             if (appel.actif) phaseAppel("repond");
 
             direWolof(tourCoach.coach, tourCoach.prononciation, function () {
