@@ -1489,7 +1489,7 @@
        ================================================================== */
 
     var SEUIL_PLANCHER = 0.012;  // en deçà, c'est du bruit de fond
-    var SILENCE_FIN_MS = 1300;   // silence qui signe la fin d'une phrase
+    var SILENCE_FIN_MS = 1100;   // silence qui signe la fin d'une phrase
     var PAROLE_MIN_MS = 350;     // en deçà, c'est un bruit, pas une phrase
     var PAROLE_MAX_MS = 20000;   // au-delà, on envoie sans attendre le silence
 
@@ -1502,6 +1502,8 @@
       recorder: null,
       morceaux: [],
       ecoute: false,
+      aParle: false,
+      debutEcoute: 0,
       parleDepuis: 0,
       silenceDepuis: 0,
       seuil: SEUIL_PLANCHER,
@@ -1535,6 +1537,7 @@
     function demarrerCapture() {
       appel.morceaux = [];
       var format = meilleurFormat();
+      appel.format = format;
       try {
         appel.recorder = format
           ? new MediaRecorder(appel.flux, { mimeType: format })
@@ -1548,11 +1551,10 @@
       });
 
       appel.recorder.addEventListener("stop", function () {
-        var blob = new Blob(appel.morceaux, {
-          type: (appel.recorder && appel.recorder.mimeType) || "audio/webm"
-        });
+        var blob = new Blob(appel.morceaux, { type: format || "audio/webm" });
+        var contientParole = appel.aParle; // lu à l'arrêt, pas au démarrage
         appel.morceaux = [];
-        if (appel.actif) envoyer(blob);
+        if (appel.actif && contientParole) envoyer(blob);
       });
 
       appel.recorder.start();
@@ -1582,7 +1584,7 @@
       if (niveau > appel.seuil) {
         if (!appel.parleDepuis) {
           appel.parleDepuis = maintenant;
-          demarrerCapture();
+          appel.aParle = true;
         }
         appel.silenceDepuis = 0;
       } else if (appel.parleDepuis) {
@@ -1599,13 +1601,15 @@
         appel.silenceDepuis = 0;
         phaseAppel("reflechit");
         dire("Coach bi dafay xalaat…");
-        arreterCapture();
+        arreterCapture(); // le gestionnaire d'arrêt se charge de l'envoi
       } else if (appel.silenceDepuis && !assezParle && maintenant - appel.silenceDepuis > SILENCE_FIN_MS) {
-        // Un bruit trop court : on jette et on reprend l'écoute.
+        // Un bruit bref, pas une phrase : on repart sur un enregistrement neuf.
         appel.parleDepuis = 0;
         appel.silenceDepuis = 0;
-        arreterCapture();
-        appel.morceaux = [];
+        rafraichirCapture();
+      } else if (!appel.parleDepuis && maintenant - appel.debutEcoute > 25000) {
+        // Long silence : on évite de laisser grossir un enregistrement vide.
+        rafraichirCapture();
       }
 
       appel.boucle = setTimeout(surveiller, 60);
@@ -1614,10 +1618,25 @@
     function reprendreEcoute() {
       if (!appel.actif) return;
       appel.ecoute = true;
+      appel.aParle = false;
       appel.parleDepuis = 0;
       appel.silenceDepuis = 0;
+      appel.debutEcoute = Date.now();
       phaseAppel("ecoute");
       dire("Wax ma, dama lay déglu…");
+
+      // On enregistre AVANT que tu parles. Attendre d'avoir détecté ta voix
+      // ferait perdre ta première syllabe, et le coach devinerait le reste.
+      demarrerCapture();
+    }
+
+    // Repart sur un enregistrement neuf sans rien envoyer : utile quand
+    // l'écoute dure sans que personne ne parle.
+    function rafraichirCapture() {
+      appel.aParle = false; // avant l'arrêt : ce morceau ne doit pas partir
+      arreterCapture();
+      appel.debutEcoute = Date.now();
+      demarrerCapture();
     }
 
     function demarrerAppel() {
