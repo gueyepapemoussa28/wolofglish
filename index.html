@@ -500,6 +500,74 @@
 
     @keyframes tourne { to { transform: rotate(360deg); } }
 
+    /* Mode appel : le micro reste ouvert, l'app détecte quand on parle. */
+    .rangee {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    #appel {
+      width: 46px; height: 46px;
+      border-radius: 50%;
+      border: 1px solid var(--card-border);
+      background: var(--bg-soft);
+      color: var(--text-dim);
+      font-size: 18px;
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      transition: background 0.2s, color 0.2s, border-color 0.2s;
+      -webkit-tap-highlight-color: transparent;
+      flex: none;
+    }
+
+    #appel:active { transform: scale(0.93); }
+
+    body.en-appel #appel {
+      background: var(--red);
+      border-color: var(--red);
+      color: #fff;
+    }
+
+    /* Pendant l'appel, le micro cède la place à un témoin d'état. */
+    body.en-appel #micro { display: none; }
+
+    .temoin {
+      width: 68px; height: 68px;
+      border-radius: 50%;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      background: var(--bg-soft);
+      border: 2px solid var(--card-border);
+      transition: border-color 0.3s, background 0.3s;
+    }
+
+    body.en-appel .temoin { display: flex; }
+
+    .temoin i {
+      width: 4px;
+      border-radius: 3px;
+      background: var(--text-dim);
+      margin: 0 2px;
+      height: 12px;
+      transition: height 0.12s ease, background 0.3s;
+    }
+
+    /* J'écoute : les barres suivent ta voix. */
+    body.en-appel.ecoute .temoin { border-color: var(--accent); }
+    body.en-appel.ecoute .temoin i { background: var(--accent); }
+
+    /* Il réfléchit. */
+    body.en-appel.reflechit .temoin { border-color: var(--text-dim); }
+
+    /* Il parle. */
+    body.en-appel.repond .temoin { border-color: var(--green); background: rgba(79,195,161,0.12); }
+    body.en-appel.repond .temoin i { background: var(--green); animation: barres 0.9s ease-in-out infinite; }
+    body.en-appel.repond .temoin i:nth-child(2) { animation-delay: 0.12s; }
+    body.en-appel.repond .temoin i:nth-child(3) { animation-delay: 0.24s; }
+    body.en-appel.repond .temoin i:nth-child(4) { animation-delay: 0.36s; }
+
     #etat {
       font-size: 14px;
       color: var(--text-dim);
@@ -538,9 +606,13 @@
     </main>
 
     <div class="barre">
+      <div class="rangee">
       <div class="micro-zone">
         <span class="onde"></span>
         <span class="onde retard"></span>
+        <div class="temoin" id="temoin">
+          <i></i><i></i><i></i><i></i>
+        </div>
         <button id="micro" type="button" aria-label="Parler">
           <svg id="icone" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
             <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
@@ -550,6 +622,8 @@
           </svg>
           <span id="roue" class="roue" hidden></span>
         </button>
+      </div>
+      <button id="appel" type="button" aria-label="Passer en mode appel">📞</button>
       </div>
       <p id="etat">Wax ma ci wolof</p>
     </div>
@@ -593,6 +667,8 @@
     var btnReset = document.getElementById("btnReset");
     var btnVoix = document.getElementById("btnVoix");
     var badge = document.getElementById("badge");
+    var appelBtn = document.getElementById("appel");
+    var temoin = document.getElementById("temoin");
     var baseline = document.getElementById("baseline");
 
     /* ==================================================================
@@ -1181,7 +1257,11 @@
     function envoyer(blob, transcriptionRefusee) {
       if (!blob || blob.size < 1000) {
         setEtat("repos");
-        dire("Je n'ai rien entendu, réessaie");
+        if (appel.actif) {
+          reprendreEcoute();
+        } else {
+          dire("Je n'ai rien entendu, réessaie");
+        }
         return;
       }
 
@@ -1244,21 +1324,26 @@
 
           sauver();
           setEtat("repos");
-          dire("Wax ma ci wolof");
           descendre();
+          // En appel, c'est la fin de sa réponse qui rendra la parole.
+          dire(appel.actif ? "Coach bi dafay wax…" : "Wax ma ci wolof");
 
           // Le coach répond à voix haute. Les deux voix sont demandées en
           // même temps et jouées l'une après l'autre : l'anglaise est déjà
           // prête quand le wolof se termine. La synthèse wolof prenant
           // quelques secondes, on signale l'attente au lieu de laisser un
           // silence que rien n'explique.
+          // En mode appel, la fin de la lecture rend la parole à l'apprenant.
+          function finLecture() {
+            if (appel.actif) reprendreEcoute();
+          }
+
           if (voixActive) {
             var signal = blocCoach && blocCoach.signalVoix;
-            if (signal) signal.hidden = false;
-
-            function masquerSignal() {
+            var masquerSignal = function () {
               if (signal) signal.hidden = true;
-            }
+            };
+            if (signal) signal.hidden = false;
 
             var vWolof = chargerVoix(tourCoach.coach, "wolof", tourCoach.prononciation);
             var vAnglais = tourCoach.anglais
@@ -1266,18 +1351,23 @@
               : null;
 
             vWolof.then(masquerSignal, masquerSignal);
+            if (appel.actif) phaseAppel("repond");
 
             direWolof(tourCoach.coach, tourCoach.prononciation, function () {
               masquerSignal();
-              if (tourCoach.anglais) direAnglais(tourCoach.anglais, null, vAnglais);
+              if (tourCoach.anglais) direAnglais(tourCoach.anglais, finLecture, vAnglais);
+              else finLecture();
             }, vWolof);
+          } else {
+            finLecture();
           }
 
         })
         .catch(function (err) {
           setEtat("repos");
-          dire("Wax ma ci wolof");
           afficherSouci("Ça n'a pas marché", (err && err.message) || "Réessaie dans un instant.");
+          if (appel.actif) reprendreEcoute();
+          else dire("Wax ma ci wolof");
         });
     }
 
@@ -1391,7 +1481,224 @@
     }
 
     /* ==================================================================
-       11. COMMANDES
+       11. MODE APPEL
+       Le micro reste ouvert et l'app décide elle-même quand tu as fini de
+       parler, en mesurant le niveau sonore. Pas de temps réel ici : on
+       réutilise tout le pipeline existant, donc la transcription, le
+       profil et la correction de prononciation continuent de fonctionner.
+       ================================================================== */
+
+    var SEUIL_PLANCHER = 0.012;  // en deçà, c'est du bruit de fond
+    var SILENCE_FIN_MS = 1300;   // silence qui signe la fin d'une phrase
+    var PAROLE_MIN_MS = 350;     // en deçà, c'est un bruit, pas une phrase
+    var PAROLE_MAX_MS = 20000;   // au-delà, on envoie sans attendre le silence
+
+    var appel = {
+      actif: false,
+      flux: null,
+      contexte: null,
+      analyseur: null,
+      donnees: null,
+      recorder: null,
+      morceaux: [],
+      ecoute: false,
+      parleDepuis: 0,
+      silenceDepuis: 0,
+      seuil: SEUIL_PLANCHER,
+      boucle: null
+    };
+
+    function phaseAppel(phase) {
+      document.body.classList.toggle("ecoute", phase === "ecoute");
+      document.body.classList.toggle("reflechit", phase === "reflechit");
+      document.body.classList.toggle("repond", phase === "repond");
+    }
+
+    function niveauSonore() {
+      appel.analyseur.getByteTimeDomainData(appel.donnees);
+      var somme = 0;
+      for (var i = 0; i < appel.donnees.length; i++) {
+        var ecart = (appel.donnees[i] - 128) / 128;
+        somme += ecart * ecart;
+      }
+      return Math.sqrt(somme / appel.donnees.length);
+    }
+
+    function animerTemoin(niveau) {
+      var barres = temoin.querySelectorAll("i");
+      for (var i = 0; i < barres.length; i++) {
+        var hauteur = 8 + Math.min(1, niveau / 0.14) * 26 * (0.6 + Math.random() * 0.6);
+        barres[i].style.height = Math.round(hauteur) + "px";
+      }
+    }
+
+    function demarrerCapture() {
+      appel.morceaux = [];
+      var format = meilleurFormat();
+      try {
+        appel.recorder = format
+          ? new MediaRecorder(appel.flux, { mimeType: format })
+          : new MediaRecorder(appel.flux);
+      } catch (e) {
+        appel.recorder = new MediaRecorder(appel.flux);
+      }
+
+      appel.recorder.addEventListener("dataavailable", function (evt) {
+        if (evt.data && evt.data.size > 0) appel.morceaux.push(evt.data);
+      });
+
+      appel.recorder.addEventListener("stop", function () {
+        var blob = new Blob(appel.morceaux, {
+          type: (appel.recorder && appel.recorder.mimeType) || "audio/webm"
+        });
+        appel.morceaux = [];
+        if (appel.actif) envoyer(blob);
+      });
+
+      appel.recorder.start();
+    }
+
+    function arreterCapture() {
+      if (appel.recorder && appel.recorder.state !== "inactive") {
+        appel.recorder.stop();
+      }
+      appel.recorder = null;
+    }
+
+    function surveiller() {
+      if (!appel.actif) return;
+
+      // On n'écoute pas pendant que le coach parle : sinon il s'entendrait
+      // lui-même et se répondrait.
+      if (!appel.ecoute) {
+        appel.boucle = setTimeout(surveiller, 120);
+        return;
+      }
+
+      var niveau = niveauSonore();
+      var maintenant = Date.now();
+      animerTemoin(niveau);
+
+      if (niveau > appel.seuil) {
+        if (!appel.parleDepuis) {
+          appel.parleDepuis = maintenant;
+          demarrerCapture();
+        }
+        appel.silenceDepuis = 0;
+      } else if (appel.parleDepuis) {
+        if (!appel.silenceDepuis) appel.silenceDepuis = maintenant;
+      }
+
+      var assezParle = appel.parleDepuis && maintenant - appel.parleDepuis > PAROLE_MIN_MS;
+      var silenceFini = appel.silenceDepuis && maintenant - appel.silenceDepuis > SILENCE_FIN_MS;
+      var tropLong = appel.parleDepuis && maintenant - appel.parleDepuis > PAROLE_MAX_MS;
+
+      if ((assezParle && silenceFini) || tropLong) {
+        appel.ecoute = false;
+        appel.parleDepuis = 0;
+        appel.silenceDepuis = 0;
+        phaseAppel("reflechit");
+        dire("Coach bi dafay xalaat…");
+        arreterCapture();
+      } else if (appel.silenceDepuis && !assezParle && maintenant - appel.silenceDepuis > SILENCE_FIN_MS) {
+        // Un bruit trop court : on jette et on reprend l'écoute.
+        appel.parleDepuis = 0;
+        appel.silenceDepuis = 0;
+        arreterCapture();
+        appel.morceaux = [];
+      }
+
+      appel.boucle = setTimeout(surveiller, 60);
+    }
+
+    function reprendreEcoute() {
+      if (!appel.actif) return;
+      appel.ecoute = true;
+      appel.parleDepuis = 0;
+      appel.silenceDepuis = 0;
+      phaseAppel("ecoute");
+      dire("Wax ma, dama lay déglu…");
+    }
+
+    function demarrerAppel() {
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        afficherSouci("Micro indisponible", "Ton navigateur ne permet pas l'appel. Essaie Chrome ou Safari à jour.");
+        return;
+      }
+
+      debloquerVoix();
+      dire("J'ouvre le micro…");
+
+      navigator.mediaDevices
+        .getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } })
+        .then(function (flux) {
+          appel.flux = flux;
+
+          var Contexte = window.AudioContext || window.webkitAudioContext;
+          appel.contexte = new Contexte();
+          if (appel.contexte.resume) appel.contexte.resume();
+
+          var source = appel.contexte.createMediaStreamSource(flux);
+          appel.analyseur = appel.contexte.createAnalyser();
+          appel.analyseur.fftSize = 1024;
+          source.connect(appel.analyseur);
+          appel.donnees = new Uint8Array(appel.analyseur.fftSize);
+
+          appel.actif = true;
+          document.body.classList.add("en-appel");
+          appelBtn.setAttribute("aria-label", "Raccrocher");
+
+          // On écoute le bruit ambiant une seconde pour régler le seuil :
+          // une chambre calme et une rue de Dakar n'ont pas le même fond.
+          dire("Un instant, j'écoute la pièce…");
+          var mesures = [];
+          var calibrage = setInterval(function () {
+            mesures.push(niveauSonore());
+          }, 50);
+
+          setTimeout(function () {
+            clearInterval(calibrage);
+            mesures.sort(function (a, b) { return a - b; });
+            var fond = mesures[Math.floor(mesures.length / 2)] || 0;
+            appel.seuil = Math.max(SEUIL_PLANCHER, fond * 3);
+            reprendreEcoute();
+            surveiller();
+          }, 1000);
+        })
+        .catch(function (err) {
+          if (err && (err.name === "NotAllowedError" || err.name === "SecurityError")) {
+            afficherSouci("Micro bloqué", "Autorise l'accès au micro, puis réessaie.");
+          } else {
+            afficherSouci("Appel impossible", (err && err.message) || "Erreur inconnue.");
+          }
+          terminerAppel();
+        });
+    }
+
+    function terminerAppel() {
+      appel.actif = false;
+      appel.ecoute = false;
+      clearTimeout(appel.boucle);
+      arreterCapture();
+
+      if (appel.flux) {
+        appel.flux.getTracks().forEach(function (piste) { piste.stop(); });
+        appel.flux = null;
+      }
+      if (appel.contexte && appel.contexte.close) {
+        appel.contexte.close();
+        appel.contexte = null;
+      }
+
+      document.body.classList.remove("en-appel");
+      phaseAppel(null);
+      appelBtn.setAttribute("aria-label", "Passer en mode appel");
+      setEtat("repos");
+      dire("Wax ma ci wolof");
+    }
+
+    /* ==================================================================
+       12. COMMANDES
        ================================================================== */
 
     micro.addEventListener("click", function () {
@@ -1406,6 +1713,11 @@
           arreter();
         }
       }
+    });
+
+    appelBtn.addEventListener("click", function () {
+      if (appel.actif) terminerAppel();
+      else if (etat === "repos") demarrerAppel();
     });
 
     btnVoix.addEventListener("click", function () {
@@ -1426,6 +1738,7 @@
     btnReset.addEventListener("click", function () {
       if (conversation.length === 0) return;
       if (!confirm("Effacer toute la conversation et repartir de zéro ?")) return;
+      if (appel.actif) terminerAppel();
       conversation = [];
       profil = null;
       sauver();
@@ -1438,6 +1751,7 @@
     });
 
     window.addEventListener("pagehide", function () {
+      if (appel.actif) terminerAppel();
       libererMicro();
       if (window.speechSynthesis) window.speechSynthesis.cancel();
     });
