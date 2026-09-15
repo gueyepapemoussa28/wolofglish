@@ -73,7 +73,9 @@ module.exports = async function handler(req, res) {
       if (!resultat.ok && contenuSecours) {
         // On garde la raison de l'échec : sans elle, le repli masque la panne.
         raisonRepli = String(resultat.details || "inconnue").slice(0, 200);
-        resultat = await elevenlabs.synthetiser(contenuSecours);
+        // Le wolof réécrit se lit avec une phonétique française : sans ce
+        // forçage, le moteur le lit à l'anglaise et rend du charabia.
+        resultat = await elevenlabs.synthetiser(contenuSecours, "fr");
         source = "elevenlabs-secours";
       }
     }
