@@ -1,0 +1,770 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="Test à l'aveugle entre deux synthèses vocales pour le wolof de Wolofglish.">
+<style>
+  :root { color-scheme: light dark; padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px); }
+  body { margin: 0; }
+  img { max-width: 100%; }
+  [hidden] { display: none !important; }
+</style>
+<title>Deux voix pour le wolof</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=Instrument+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
+
+<style>
+  :root {
+    --fond:     #F6F5F2;
+    --surface:  #FFFFFF;
+    --creux:    #EFEDE8;
+    --encre:    #14181E;
+    --doux:     #676D78;
+    --trait:    #DEDBD4;
+    --signal:   #0E7C63;
+    --signal-f: rgba(14, 124, 99, 0.10);
+    --lourd:    #A8651B;
+    --lourd-f:  rgba(168, 101, 27, 0.10);
+    --ombre:    0 1px 2px rgba(20, 24, 30, 0.05), 0 8px 24px -12px rgba(20, 24, 30, 0.18);
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --fond:     #101317;
+      --surface:  #191D23;
+      --creux:    #21262D;
+      --encre:    #E8E6E1;
+      --doux:     #98A0AC;
+      --trait:    #2A3038;
+      --signal:   #3FBE9C;
+      --signal-f: rgba(63, 190, 156, 0.12);
+      --lourd:    #DFA155;
+      --lourd-f:  rgba(223, 161, 85, 0.12);
+      --ombre:    0 1px 2px rgba(0, 0, 0, 0.4), 0 8px 24px -12px rgba(0, 0, 0, 0.7);
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --fond:     #101317;
+    --surface:  #191D23;
+    --creux:    #21262D;
+    --encre:    #E8E6E1;
+    --doux:     #98A0AC;
+    --trait:    #2A3038;
+    --signal:   #3FBE9C;
+    --signal-f: rgba(63, 190, 156, 0.12);
+    --lourd:    #DFA155;
+    --lourd-f:  rgba(223, 161, 85, 0.12);
+    --ombre:    0 1px 2px rgba(0, 0, 0, 0.4), 0 8px 24px -12px rgba(0, 0, 0, 0.7);
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--fond);
+    color: var(--encre);
+    font-family: "Instrument Sans", system-ui, -apple-system, sans-serif;
+    font-size: 16px;
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .page {
+    max-width: 760px;
+    margin: 0 auto;
+    padding-inline: 20px;
+    padding-block: 40px 72px;
+    display: flex;
+    flex-direction: column;
+    gap: 44px;
+  }
+
+  /* ---------- en-tête ---------- */
+
+  .chapeau { display: flex; flex-direction: column; gap: 14px; }
+
+  .oeil {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--doux);
+  }
+
+  h1 {
+    font-family: "Bricolage Grotesque", system-ui, sans-serif;
+    font-optical-sizing: auto;
+    font-weight: 800;
+    font-size: clamp(30px, 7vw, 46px);
+    line-height: 1.04;
+    letter-spacing: -0.025em;
+    margin: 0;
+    text-wrap: balance;
+  }
+
+  .amorce {
+    font-size: 17px;
+    color: var(--doux);
+    margin: 0;
+    max-width: 58ch;
+  }
+
+  .amorce strong { color: var(--encre); font-weight: 600; }
+
+  /* ---------- la mesure de latence ---------- */
+
+  .mesure {
+    background: var(--surface);
+    border: 1px solid var(--trait);
+    border-radius: 14px;
+    padding: 22px;
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+    box-shadow: var(--ombre);
+  }
+
+  .mesure-titre {
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--doux);
+  }
+
+  .barre-ligne { display: flex; flex-direction: column; gap: 7px; }
+
+  .barre-tete {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 12px;
+    font-size: 14px;
+    font-weight: 600;
+  }
+
+  .barre-tete span:last-child {
+    font-family: "JetBrains Mono", ui-monospace, monospace;
+    font-variant-numeric: tabular-nums;
+    font-size: 13px;
+  }
+
+  .rail { height: 12px; border-radius: 6px; background: var(--creux); overflow: hidden; }
+  .jauge { height: 100%; border-radius: 6px; }
+  .jauge.lent   { background: var(--lourd); width: 100%; }
+  .jauge.rapide { background: var(--signal); width: 5.2%; min-width: 8px; }
+
+  .verdict-mesure {
+    font-size: 14px;
+    color: var(--doux);
+    padding-top: 4px;
+    border-top: 1px solid var(--trait);
+  }
+  .verdict-mesure b { color: var(--signal); font-weight: 600; }
+
+  /* ---------- les essais à l'aveugle ---------- */
+
+  .section-tete { display: flex; flex-direction: column; gap: 8px; }
+
+  h2 {
+    font-family: "Bricolage Grotesque", system-ui, sans-serif;
+    font-weight: 700;
+    font-size: 25px;
+    letter-spacing: -0.015em;
+    margin: 0;
+  }
+
+  .section-tete p { margin: 0; color: var(--doux); font-size: 15px; max-width: 58ch; }
+
+  .essais { display: flex; flex-direction: column; gap: 20px; margin-top: 24px; }
+
+  .essai {
+    background: var(--surface);
+    border: 1px solid var(--trait);
+    border-radius: 14px;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    box-shadow: var(--ombre);
+  }
+
+  .cible {
+    font-family: "Bricolage Grotesque", system-ui, sans-serif;
+    font-weight: 700;
+    font-size: 21px;
+    line-height: 1.3;
+    letter-spacing: -0.012em;
+    margin: 0;
+    text-wrap: balance;
+  }
+
+  .cible-note { font-size: 13px; color: var(--doux); margin: 4px 0 0; }
+
+  .duo { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+  @media (max-width: 460px) { .duo { grid-template-columns: 1fr; } }
+
+  .pan {
+    border: 1px solid var(--trait);
+    border-radius: 11px;
+    padding: 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    background: var(--fond);
+    transition: border-color 0.2s ease, background 0.2s ease;
+  }
+
+  .pan.joue { border-color: var(--signal); background: var(--signal-f); }
+
+  .pan-nom {
+    font-family: "JetBrains Mono", ui-monospace, monospace;
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.1em;
+    color: var(--doux);
+    text-transform: uppercase;
+  }
+
+  .lire {
+    font: inherit;
+    font-size: 15px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    width: 100%;
+    padding: 11px 13px;
+    border-radius: 9px;
+    border: 1px solid var(--trait);
+    background: var(--surface);
+    color: var(--encre);
+    cursor: pointer;
+    transition: transform 0.12s ease, border-color 0.2s ease;
+  }
+
+  .lire:hover { border-color: var(--encre); }
+  .lire:active { transform: scale(0.98); }
+  .lire:focus-visible { outline: 2px solid var(--signal); outline-offset: 2px; }
+
+  .tete-lecture {
+    width: 22px; height: 22px;
+    border-radius: 50%;
+    background: var(--encre);
+    color: var(--surface);
+    display: grid;
+    place-items: center;
+    font-size: 9px;
+    flex: none;
+  }
+
+  .pan.joue .tete-lecture { background: var(--signal); }
+
+  /* ---------- le vote ---------- */
+
+  .vote { display: flex; flex-direction: column; gap: 9px; }
+
+  .vote-question { font-size: 13px; font-weight: 600; color: var(--doux); }
+
+  .vote-choix { display: flex; flex-wrap: wrap; gap: 8px; }
+
+  .bulletin {
+    font: inherit;
+    font-size: 14px;
+    font-weight: 600;
+    padding: 8px 15px;
+    border-radius: 999px;
+    border: 1px solid var(--trait);
+    background: var(--surface);
+    color: var(--encre);
+    cursor: pointer;
+    transition: all 0.16s ease;
+  }
+
+  .bulletin:hover { border-color: var(--encre); }
+  .bulletin:focus-visible { outline: 2px solid var(--signal); outline-offset: 2px; }
+  .bulletin.pris { background: var(--encre); border-color: var(--encre); color: var(--fond); }
+
+  /* ---------- la révélation ---------- */
+
+  .revele {
+    border-top: 1px solid var(--trait);
+    padding-top: 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 11px;
+  }
+
+  .fiche { display: flex; flex-direction: column; gap: 5px; }
+
+  .fiche-tete {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    flex-wrap: wrap;
+    font-size: 13px;
+    font-weight: 600;
+  }
+
+  .pastille {
+    font-family: "JetBrains Mono", ui-monospace, monospace;
+    font-size: 10px;
+    font-weight: 500;
+    letter-spacing: 0.06em;
+    padding: 3px 8px;
+    border-radius: 5px;
+  }
+
+  .pastille.lent   { background: var(--lourd-f);  color: var(--lourd); }
+  .pastille.rapide { background: var(--signal-f); color: var(--signal); }
+
+  .retour {
+    font-family: "JetBrains Mono", ui-monospace, monospace;
+    font-size: 12.5px;
+    line-height: 1.5;
+    color: var(--doux);
+    padding-left: 13px;
+    border-left: 2px solid var(--trait);
+  }
+
+  .retour b { color: var(--encre); font-weight: 500; }
+
+  /* ---------- la réécriture ---------- */
+
+  .paliers { display: flex; flex-direction: column; gap: 11px; margin-top: 22px; }
+
+  .palier {
+    background: var(--surface);
+    border: 1px solid var(--trait);
+    border-radius: 12px;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 11px;
+    box-shadow: var(--ombre);
+  }
+
+  .palier-tete {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+
+  .palier-nom { font-size: 14px; font-weight: 600; }
+
+  .envoye {
+    font-family: "JetBrains Mono", ui-monospace, monospace;
+    font-size: 13px;
+    background: var(--creux);
+    border-radius: 7px;
+    padding: 9px 11px;
+    overflow-x: auto;
+    white-space: nowrap;
+  }
+
+  /* ---------- le bilan ---------- */
+
+  .bilan {
+    background: var(--surface);
+    border: 1px solid var(--trait);
+    border-radius: 14px;
+    padding: 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    box-shadow: var(--ombre);
+  }
+
+  #bilanTexte { margin: 0; font-size: 16px; }
+  #bilanTexte b { font-weight: 600; }
+
+  .decompte {
+    display: flex;
+    gap: 22px;
+    flex-wrap: wrap;
+    font-family: "JetBrains Mono", ui-monospace, monospace;
+    font-size: 13px;
+    color: var(--doux);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .decompte b { color: var(--encre); font-weight: 500; }
+
+  .suite { display: flex; flex-direction: column; gap: 9px; margin: 0; padding: 0; list-style: none; }
+
+  .suite li {
+    display: flex;
+    gap: 11px;
+    align-items: baseline;
+    font-size: 15px;
+    padding-top: 9px;
+    border-top: 1px solid var(--trait);
+  }
+
+  .suite li span:first-child {
+    font-family: "JetBrains Mono", ui-monospace, monospace;
+    font-size: 11px;
+    color: var(--signal);
+    flex: none;
+    padding-top: 2px;
+  }
+
+  footer {
+    font-size: 13px;
+    color: var(--doux);
+    border-top: 1px solid var(--trait);
+    padding-top: 18px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { transition: none !important; animation: none !important; }
+  }
+</style>
+
+</head>
+<body>
+<div class="page">
+
+  <header class="chapeau">
+    <div class="oeil">Wolofglish · mesure du 15 septembre 2026</div>
+    <h1>Deux voix pour le wolof</h1>
+    <p class="amorce">
+      Le coach parle wolof avec la synthèse Google, qui met <strong>huit secondes</strong> par réplique
+      et épuise son quota. Une autre voie existe : faire lire du wolof <em>réécrit à la française</em>
+      par ElevenLabs, en <strong>quatre cents millisecondes</strong>.
+      Les machines disent que c'est équivalent. <strong>Ton oreille tranche.</strong>
+    </p>
+  </header>
+
+  <section class="mesure">
+    <div class="mesure-titre">Temps pour fabriquer une réplique</div>
+
+    <div class="barre-ligne">
+      <div class="barre-tete"><span>Synthèse Google (actuelle)</span><span>8 076 ms</span></div>
+      <div class="rail"><div class="jauge lent"></div></div>
+    </div>
+
+    <div class="barre-ligne">
+      <div class="barre-tete"><span>ElevenLabs, wolof réécrit</span><span>419 ms</span></div>
+      <div class="rail"><div class="jauge rapide"></div></div>
+    </div>
+
+    <p class="verdict-mesure">
+      <b>Dix-neuf fois plus rapide.</b> Sur un échange complet — tu parles, il comprend, il répond —
+      cela fait passer l'attente d'environ onze secondes à trois.
+    </p>
+  </section>
+
+  <section>
+    <div class="section-tete">
+      <h2>À l'aveugle</h2>
+      <p>
+        Les deux voix sont mélangées, et l'ordre change à chaque ouverture de la page.
+        Écoute A, écoute B, choisis celle qui sonne le plus wolof. Tu verras ensuite
+        laquelle était laquelle.
+      </p>
+    </div>
+    <div class="essais" id="essais"></div>
+  </section>
+
+  <section>
+    <div class="section-tete">
+      <h2>Ce que la réécriture change</h2>
+      <p>
+        ElevenLabs ne connaît pas le wolof. Il lit ce qu'on lui écrit — alors on lui écrit
+        le wolof comme un Dakarois l'écrirait dans un SMS. La même phrase, trois orthographes.
+      </p>
+    </div>
+    <div class="paliers" id="paliers"></div>
+  </section>
+
+  <section class="bilan">
+    <p id="bilanTexte">Écoute les trois essais, puis reviens ici.</p>
+    <div class="decompte" id="decompte" hidden></div>
+    <ul class="suite" id="suite" hidden></ul>
+  </section>
+
+  <footer>
+    Phrases synthétisées puis réécoutées par la transcription du coach : ce qui est cité
+    sous chaque voix est ce que la machine a réellement recompris. Elle n'a pas ton oreille.
+  </footer>
+
+</div>
+
+<script>
+  var ESSAIS = [
+    {
+      cible: "Naka liggéey bi ? Baax na, jërëjëf.",
+      note: "Les deux mots que tu m'as signalés : « liggéey » entendu « ligway », « baax » entendu « bac ».",
+      lent:   { fichier: "sons/g1.wav",  lu: "Naka li gay bi? Bahna, jërëjëf.",       ms: "8 076 ms" },
+      rapide: { fichier: "sons/o1.mp3",  lu: "Na ko liggeeyale bi baxna juróom juuf.", ms: "428 ms",
+                envoye: "Na-ka li-gaille bi ? Bakh na, djeureu-djeuf." }
+    },
+    {
+      cible: "Ndank ndank mooy jàpp golo ci ñaay.",
+      note: "Un proverbe de ton lexique — la phrase la plus difficile des trois.",
+      lent:   { fichier: "sons/g2.wav",  lu: "dank dank moy djappagolou tignay",      ms: "≈ 8 000 ms" },
+      rapide: { fichier: "sons/o2.mp3",  lu: "Ndank ndank mooy dipp golo ci ngnéy.",  ms: "547 ms",
+                envoye: "Ndank ndank moï diapp go-lo tchi gnaye." }
+    },
+    {
+      cible: "Dama bëgg jàng anglais bu baax.",
+      note: "Une phrase courante, avec un mot français au milieu.",
+      lent:   { fichier: "sons/g3.wav",  lu: "Dama beugue diangue anglais bou baax",  ms: "≈ 8 000 ms" },
+      rapide: { fichier: "sons/o3.mp3",  lu: "Damay bëgg di jang Angale bu bax.",     ms: "384 ms",
+                envoye: "Da-ma beugg diang an-glè bou bakh." }
+    }
+  ];
+
+  var PALIERS = [
+    { nom: "Wolof tel quel", fichier: "sons/r-brut.mp3",
+      envoye: "Naka liggéey bi ? Baax na, jërëjëf.",
+      lu: "makkaligèy bi box na jaral jëf" },
+    { nom: "Réécrit à la française", fichier: "sons/r-moyen.mp3",
+      envoye: "Naka liguéyy bi ? Bakh na, djeureudjeuf.",
+      lu: "Na ka nga yebi? Baax na, jërëjëf." },
+    { nom: "Réécrit et découpé en syllabes", fichier: "sons/r-fort.mp3",
+      envoye: "Naka li-gaille bi ? Bakh na, djeureu-djeuf.",
+      lu: "Na ka liggey li? Baxna, jërëjëf." }
+  ];
+
+  var votes = {};
+  var enCours = null;
+
+  function lire(fichier, panneau, bouton) {
+    if (enCours) {
+      enCours.audio.pause();
+      enCours.panneau.classList.remove("joue");
+      enCours.bouton.querySelector(".etiquette").textContent = enCours.libelle;
+      var memeSon = enCours.audio.dataset.fichier === fichier;
+      enCours = null;
+      if (memeSon) return;
+    }
+
+    var audio = new Audio(fichier);
+    audio.dataset.fichier = fichier;
+    var etiquette = bouton.querySelector(".etiquette");
+    var libelle = etiquette.textContent;
+
+    panneau.classList.add("joue");
+    etiquette.textContent = "En lecture…";
+    enCours = { audio: audio, panneau: panneau, bouton: bouton, libelle: libelle };
+
+    audio.addEventListener("ended", function () {
+      panneau.classList.remove("joue");
+      etiquette.textContent = libelle;
+      enCours = null;
+    });
+    audio.addEventListener("error", function () {
+      panneau.classList.remove("joue");
+      etiquette.textContent = "Lecture impossible";
+      enCours = null;
+    });
+    audio.play().catch(function () {
+      panneau.classList.remove("joue");
+      etiquette.textContent = libelle;
+      enCours = null;
+    });
+  }
+
+  function creer(balise, classe, texte) {
+    var el = document.createElement(balise);
+    if (classe) el.className = classe;
+    if (texte !== undefined) el.textContent = texte;
+    return el;
+  }
+
+  function boutonLecture(nom, fichier) {
+    var pan = creer("div", "pan");
+    pan.appendChild(creer("div", "pan-nom", nom));
+
+    var bouton = creer("button", "lire");
+    var tete = creer("span", "tete-lecture", "▶");
+    bouton.appendChild(tete);
+    bouton.appendChild(creer("span", "etiquette", "Écouter"));
+    bouton.addEventListener("click", function () { lire(fichier, pan, bouton); });
+
+    pan.appendChild(bouton);
+    return pan;
+  }
+
+  function construireEssai(essai, index) {
+    var carte = creer("article", "essai");
+
+    var tete = creer("div");
+    tete.appendChild(creer("p", "cible", essai.cible));
+    if (essai.note) tete.appendChild(creer("p", "cible-note", essai.note));
+    carte.appendChild(tete);
+
+    // L'ordre change à chaque ouverture : personne ne doit savoir qui parle.
+    var aGauche = Math.random() < 0.5;
+    var premier = aGauche ? essai.lent : essai.rapide;
+    var second  = aGauche ? essai.rapide : essai.lent;
+
+    var duo = creer("div", "duo");
+    duo.appendChild(boutonLecture("Voix A", premier.fichier));
+    duo.appendChild(boutonLecture("Voix B", second.fichier));
+    carte.appendChild(duo);
+
+    var vote = creer("div", "vote");
+    vote.appendChild(creer("div", "vote-question", "Laquelle sonne le plus wolof ?"));
+    var choix = creer("div", "vote-choix");
+
+    var revelation = creer("div", "revele");
+    revelation.hidden = true;
+
+    [
+      { texte: "Voix A", val: aGauche ? "lent" : "rapide" },
+      { texte: "Voix B", val: aGauche ? "rapide" : "lent" },
+      { texte: "Les deux se valent", val: "egal" },
+      { texte: "Aucune des deux", val: "aucune" }
+    ].forEach(function (option) {
+      var b = creer("button", "bulletin", option.texte);
+      b.addEventListener("click", function () {
+        Array.prototype.forEach.call(choix.children, function (autre) {
+          autre.classList.remove("pris");
+        });
+        b.classList.add("pris");
+        votes[index] = option.val;
+        revelation.hidden = false;
+        majBilan();
+      });
+      choix.appendChild(b);
+    });
+
+    vote.appendChild(choix);
+    carte.appendChild(vote);
+
+    // La révélation : qui était qui, et ce que la machine a recompris.
+    [
+      { d: essai.lent,   nom: aGauche ? "Voix A" : "Voix B", moteur: "Synthèse Google", classe: "lent" },
+      { d: essai.rapide, nom: aGauche ? "Voix B" : "Voix A", moteur: "ElevenLabs", classe: "rapide" }
+    ].forEach(function (f) {
+      var fiche = creer("div", "fiche");
+      var ft = creer("div", "fiche-tete");
+      ft.appendChild(creer("span", null, f.nom + " — " + f.moteur));
+      ft.appendChild(creer("span", "pastille " + f.classe, f.d.ms));
+      fiche.appendChild(ft);
+
+      if (f.d.envoye) {
+        var env = creer("div", "retour");
+        env.appendChild(document.createTextNode("on lui a écrit "));
+        env.appendChild(creer("b", null, "« " + f.d.envoye + " »"));
+        fiche.appendChild(env);
+      }
+
+      var lu = creer("div", "retour");
+      lu.appendChild(document.createTextNode("réécouté, la machine comprend "));
+      lu.appendChild(creer("b", null, "« " + f.d.lu + " »"));
+      fiche.appendChild(lu);
+
+      revelation.appendChild(fiche);
+    });
+
+    carte.appendChild(revelation);
+    return carte;
+  }
+
+  function construirePalier(p) {
+    var carte = creer("article", "palier");
+
+    var tete = creer("div", "palier-tete");
+    tete.appendChild(creer("span", "palier-nom", p.nom));
+    var b = creer("button", "lire");
+    b.style.width = "auto";
+    b.appendChild(creer("span", "tete-lecture", "▶"));
+    b.appendChild(creer("span", "etiquette", "Écouter"));
+    tete.appendChild(b);
+    carte.appendChild(tete);
+
+    b.addEventListener("click", function () { lire(p.fichier, carte, b); });
+
+    carte.appendChild(creer("div", "envoye", p.envoye));
+
+    var lu = creer("div", "retour");
+    lu.appendChild(document.createTextNode("réécouté, la machine comprend "));
+    lu.appendChild(creer("b", null, "« " + p.lu + " »"));
+    carte.appendChild(lu);
+
+    return carte;
+  }
+
+  function majBilan() {
+    var faits = Object.keys(votes).length;
+    var texte = document.getElementById("bilanTexte");
+    var decompte = document.getElementById("decompte");
+    var suite = document.getElementById("suite");
+
+    if (faits === 0) return;
+
+    var pour = { lent: 0, rapide: 0, egal: 0, aucune: 0 };
+    Object.keys(votes).forEach(function (k) { pour[votes[k]]++; });
+
+    decompte.hidden = false;
+    decompte.textContent = "";
+    [
+      ["Synthèse Google", pour.lent],
+      ["ElevenLabs", pour.rapide],
+      ["à égalité", pour.egal],
+      ["ni l'une ni l'autre", pour.aucune]
+    ].forEach(function (paire) {
+      var bloc = creer("span");
+      bloc.appendChild(creer("b", null, String(paire[1])));
+      bloc.appendChild(document.createTextNode(" " + paire[0]));
+      decompte.appendChild(bloc);
+    });
+
+    if (faits < ESSAIS.length) {
+      texte.textContent = faits + " essai(s) sur " + ESSAIS.length + ". Continue.";
+      suite.hidden = true;
+      return;
+    }
+
+    var conseil;
+    if (pour.rapide >= pour.lent && pour.rapide + pour.egal >= 2) {
+      conseil = [
+        ["→", "Basculer la voix wolof sur ElevenLabs, avec réécriture forte et langue française forcée."],
+        ["→", "Soigner le champ « prononciation » du coach : c'est lui qui fabrique la réécriture, et c'est là que tout se joue."],
+        ["→", "Garder la synthèse Google en repli, quand ElevenLabs manque de crédits."]
+      ];
+      texte.innerHTML = "Ton oreille préfère <b>la voix rapide</b>. C'est aussi la moins chère et la plus fluide : la décision est simple.";
+    } else if (pour.lent > pour.rapide) {
+      conseil = [
+        ["→", "Garder la synthèse Google pour le wolof, malgré les huit secondes."],
+        ["→", "Chercher la vitesse ailleurs : lancer la voix pendant que le texte s'affiche, et raccourcir les répliques."],
+        ["→", "Envisager un compte ElevenLabs payant pour cloner la voix d'un locuteur wolof — c'est la seule piste qui battrait les deux."]
+      ];
+      texte.innerHTML = "Ton oreille préfère <b>la voix lente</b>. La qualité l'emporte : on garde Google et on attaque la lenteur autrement.";
+    } else {
+      conseil = [
+        ["→", "Si les deux se valent, prendre la rapide : dix-neuf fois plus vite, à qualité égale."],
+        ["→", "Et cloner la voix d'un locuteur wolof, pour dépasser les deux."]
+      ];
+      texte.innerHTML = "Verdict partagé. <b>À qualité égale, la vitesse décide.</b>";
+    }
+
+    suite.hidden = false;
+    suite.textContent = "";
+    conseil.forEach(function (c) {
+      var li = document.createElement("li");
+      li.appendChild(creer("span", null, c[0]));
+      li.appendChild(creer("span", null, c[1]));
+      suite.appendChild(li);
+    });
+  }
+
+  var zoneEssais = document.getElementById("essais");
+  ESSAIS.forEach(function (e, i) { zoneEssais.appendChild(construireEssai(e, i)); });
+
+  var zonePaliers = document.getElementById("paliers");
+  PALIERS.forEach(function (p) { zonePaliers.appendChild(construirePalier(p)); });
+</script>
+
+</body>
+</html>
