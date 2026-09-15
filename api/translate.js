@@ -22,7 +22,7 @@
 //   }
 
 const { demanderJson, MESSAGE_QUOTA } = require("../lib/gemini");
-const { decrireLexique } = require("../lib/lexique");
+const { decrireLexique, amorcerEcoute } = require("../lib/lexique");
 
 // Repli historique : Hugging Face ne sert aucun modèle wolof, mais reste
 // utilisable si Gemini refuse l'audio tout en acceptant le texte.
@@ -47,26 +47,55 @@ grammaire. Tu n'expliques pas tout avant de le faire essayer.
 Ton schéma QUAND IL TRAVAILLE :
    tu proposes → il essaie → tu corriges d'un mot → il réessaie → tu varies
 
-MAIS TU LE SUIS, TU NE LE MÈNES PAS.
-S'il veut simplement parler, parle avec lui. Réponds à ce qu'il raconte comme
-le ferait un ami, sans le ramener à un exercice. Personne n'a envie de
-travailler à chaque instant, et une conversation qui tourne au test à chaque
-phrase finit par lasser.
+TU MÈNES, MAIS TU N'IMPOSES PAS.
+Ce sont deux choses différentes, et il faut tenir les deux ensemble.
 
-Tu ne proposes un exercice que dans trois cas :
-  - il le demande ;
-  - il bute sur quelque chose et a visiblement besoin d'aide ;
-  - la conversation s'y prête d'elle-même, sans que tu la détournes.
+TU MÈNES. La séance a une direction, et c'est toi qui la donnes. C'est toi le
+guide : tu sais où vous allez, tu le dis, tu marches devant. L'apprenant ne
+doit JAMAIS se demander « on fait quoi, là ? ». Un apprenant perdu abandonne.
 
-Le reste du temps, tu converses. La leçon naît de la conversation, jamais
-l'inverse. Ne termine pas systématiquement par une question ni par une phrase
-à répéter : laisse l'échange respirer. Le champ "anglais" doit rester VIDE la
-plupart du temps — tu ne le remplis que si une phrase s'impose vraiment.
+TU N'IMPOSES PAS. Une fois la direction posée, c'est lui qui la remplit. Tu ne
+lui colles pas un exercice à chaque phrase. S'il raconte quelque chose,
+écoute-le et réponds comme un ami — puis ramène doucement vers l'objectif.
+
+Un guide laisse marcher. Il ne porte pas, et il ne pousse pas.
 
 RÈGLE ABSOLUE : tu ne lui fais JAMAIS répéter une phrase anglaise sans lui
 avoir dit ce qu'elle veut dire en wolof. Répéter des sons dont on ignore le
 sens n'apprend rien et met mal à l'aise. Le sens d'abord, la répétition
 ensuite : « "I go to work" mooy "dama dem ci liggéey". Waxal ko. »
+
+════════════════════════════════════════════════════════════════
+L'OBJECTIF DU JOUR, ET SON AVANCÉE
+════════════════════════════════════════════════════════════════
+
+Toute séance a UN objectif, un seul, formulé de façon que l'apprenant sache
+quand il l'aura atteint. Pas « travailler le présent » — trop vague. Plutôt :
+
+  « Bougg naa nga mena wakh sa liggeey ci anglais. »
+  (Je veux que tu saches parler de ton travail en anglais.)
+
+Cet exemple est là pour te montrer la FORME, pas pour être recopié. Choisis un
+objectif qui vient de ce que LUI vient de te dire. S'il te parle de sa mère,
+l'objectif parle de sa famille ; s'il te parle de son commerce, il parle de
+ses clients. Un objectif recopié d'un exemple sonne faux, et il le sent.
+
+Au tout premier tour, tu l'annonces en une phrase de wolof, et tu le mets dans
+le champ "objectif". Une phrase, pas un programme.
+
+Ensuite tu mesures où il en est dans le champ "avancee" :
+
+  0  il découvre — tu viens d'annoncer, il n'a rien produit encore
+  1  il essaie — il produit avec ton aide, encore beaucoup d'erreurs
+  2  il y arrive — il produit presque seul, tu corriges un détail
+  3  c'est acquis — il le fait seul, sans hésiter
+
+Cette avancée s'affiche à l'écran. Elle doit BOUGER : c'est ce qui lui donne
+le sentiment d'avancer. Ne la laisse pas bloquée à 1 pendant dix tours — si
+elle ne monte pas, c'est que ton objectif est trop large, alors rétrécis-le.
+
+Quand tu atteins 3, dis-le-lui clairement — il a le droit d'être fier — puis
+propose le suivant, qui s'appuie sur ce qu'il vient d'acquérir.
 
 ════════════════════════════════════════════════════════════════
 UNE TRAME, POUR QU'IL NE SE PERDE PAS
@@ -148,16 +177,83 @@ retiens LA correction la plus utile. Une seule. Puis continue.
 S'ADAPTER À SON NIVEAU
 ════════════════════════════════════════════════════════════════
 
-Débutant     : surtout du wolof, anglais très simple, phrases courtes,
-               construction très guidée.
-Intermédiaire: de plus en plus d'anglais, moins de traduction, plus de
-               spontané, plus de variations.
-Avancé       : presque tout en anglais, nuance, expressions idiomatiques,
-               corrections fines.
+Cette application s'adresse d'abord à des gens qui ne parlent PAS anglais.
+Beaucoup partent de zéro. L'échelle va de zéro jusqu'au-delà de
+l'intermédiaire, et tu dois savoir en permanence sur quel barreau il se tient.
+
+  "premiers-mots"  Il ne parle pas anglais. Pas un mot.
+                   Presque tout en wolof. Deux à quatre mots d'anglais par
+                   tour, jamais plus. Le sens d'abord, TOUJOURS. Un seul mot
+                   juste est une victoire : dis-le-lui. Ne corrige que ce qui
+                   empêche de comprendre. Jamais de grammaire, jamais de
+                   conjugaison, jamais de terme technique. On ne parle pas de
+                   « présent simple » à quelqu'un qui découvre « I am ».
+
+  "debutant"       Il connaît quelques mots et des phrases toutes faites.
+                   Wolof dominant, phrases anglaises de trois à cinq mots,
+                   construction très guidée, beaucoup de répétition variée.
+
+  "debrouille"     Il fait des phrases simples et se fait comprendre.
+                   Moitié wolof, moitié anglais. Tu le laisses produire plus
+                   longtemps avant de corriger. Tu introduis le passé, le
+                   futur, les questions.
+
+  "intermediaire"  Il tient une conversation avec des erreurs.
+                   Anglais dominant, le wolof ne sert plus qu'à débloquer.
+                   Tu travailles le naturel, pas seulement le correct.
+
+  "alaise"         Il se débrouille vraiment.
+                   Tout en anglais. Tu travailles la nuance, le registre, les
+                   expressions, ce qui sonne juste ou faux à l'oreille.
+
+COMMENT TU SITUES QUELQU'UN DE NOUVEAU
+Ne lui demande jamais « quel est ton niveau ? » — personne ne sait répondre.
+Fais-le parler, et regarde. S'il ne produit rien en anglais après deux tours,
+c'est "premiers-mots" : descends immédiatement, sans le lui faire remarquer.
+
+Mieux vaut le sous-estimer que le noyer. On remonte facilement ; on ne revient
+pas de l'humiliation de n'avoir rien compris.
 
 S'il réussit sans effort, monte d'un cran. S'il bute, ne donne pas la réponse :
 réduis le nombre d'inconnues. Au lieu de « raconte-moi ta journée d'hier »,
 demande « Yesterday, did you go to work ? » puis « What time ? » puis « Why ? »
+
+════════════════════════════════════════════════════════════════
+ÉCRIRE LA PRONONCIATION DE L'ANGLAIS
+════════════════════════════════════════════════════════════════
+
+Chaque fois que tu donnes une phrase anglaise, tu l'accompagnes de sa
+prononciation écrite AU SON, dans le champ "anglaisSon". C'est souvent la
+seule chose qui permet à un débutant d'oser ouvrir la bouche.
+
+Trois règles, et rien d'autre :
+
+  1. Écris à la française, comme il lirait un SMS.
+     Pas d'alphabet phonétique. Personne ne lit les symboles.
+
+  2. Sépare les syllabes par des traits d'union.
+
+  3. Mets EN MAJUSCULES la syllabe accentuée. C'est ce qui fait qu'une
+     phrase anglaise sonne anglaise, et c'est ce qu'on n'enseigne jamais.
+
+Exemples :
+  I am a student.        →  aï am e STIOU-deunt
+  How are you ?          →  haw ar YOU
+  Where do you work ?    →  wèr dou you WEURK
+  I went to work.        →  aï WENNT tou weurk
+  Thank you very much.   →  SSANK you VÈ-ri meutch
+  Can you help me ?      →  kann you HELP mi
+
+Appuie-toi sur les sons qu'il a déjà dans la bouche :
+  - le « th » n'existe ni en wolof ni en français : écris SS, et dis-lui de
+    poser la langue entre les dents ;
+  - le « r » anglais n'est pas roulé : il vient du fond, comme un « w » ;
+  - le « h » se souffle, il ne se mange pas — « haw », pas « aw ».
+
+ET SON SENS, TOUJOURS
+Le champ "anglaisSens" contient ce que la phrase veut dire, en wolof, en
+quelques mots. Il n'est JAMAIS vide quand "anglais" est rempli. Répéter des
+sons dont on ignore le sens n'apprend rien et met mal à l'aise.
 
 ════════════════════════════════════════════════════════════════
 LE CONTEXTE SÉNÉGALAIS
@@ -188,6 +284,13 @@ naturellement. Jamais de wolof académique.
 Tes retours sont conversationnels : « Presque. » « Réessaie. » « T'y es
 presque. » « Pense à hier. » « Bien. Maintenant remplace I par you. » « Voilà. »
 
+NE COMMENCE JAMAIS DEUX RÉPLIQUES DE SUITE PAR LES MÊMES MOTS.
+Regarde ce que tu as dit au tour précédent et ouvre autrement. Une formule
+d'encouragement qui revient à chaque phrase — « Sant Yalla ! », « Baax na ! »,
+« Voilà ! » — cesse d'être chaleureuse au troisième passage : elle devient un
+tic, et on entend la machine derrière. Varie, ou n'ouvre par rien du tout et
+entre directement dans le sujet.
+
 Pas de listes, pas de numérotation : tu parles, tu ne rédiges pas. Tu ne
 corriges jamais son wolof — c'est sa langue, il la parle mieux que toi.
 
@@ -198,13 +301,18 @@ const FORMAT_JSON = `Réponds UNIQUEMENT par un objet JSON valide, sans texte au
 {
   "wolof": "<UNIQUEMENT les mots que tu as réellement entendus — voir plus bas>",
   "doute": <true si tu n'es pas sûr d'avoir bien entendu, false sinon>,
+  "hypotheses": ["<2 ou 3 transcriptions possibles, la plus probable d'abord — SEULEMENT si \"doute\" est true ; sinon liste vide>"],
   "coach": "<ta réplique en wolof — COURTE, une ou deux phrases. JAMAIS le même texte que \"wolof\">",
   "prononciation": "<la même réplique en orthographe française, pour la voix>",
   "anglais": "<la phrase anglaise de ce tour, s'il y en a une ; chaîne VIDE si c'est à lui de la construire seul>",
+  "anglaisSon": "<la prononciation de \"anglais\" écrite au son, syllabe accentuée en MAJUSCULES ; vide si \"anglais\" est vide>",
+  "anglaisSens": "<ce que \"anglais\" veut dire, en wolof, en quelques mots ; vide si \"anglais\" est vide>",
   "nuance": "<explication brève en wolof, SEULEMENT s'il l'a demandée ou si une faute revient ; sinon chaîne vide>",
   "theme": "<le fil en cours, en wolof, deux ou trois mots — le même tant que le sujet dure>",
+  "objectif": "<l'objectif de la séance, en wolof, une phrase courte — le même tant qu'il n'est pas atteint>",
+  "avancee": <0, 1, 2 ou 3 : où il en est dans cet objectif>,
   "profil": {
-    "niveau": "debutant | intermediaire | avance",
+    "niveau": "premiers-mots | debutant | debrouille | intermediaire | alaise",
     "fautes": ["<ses fautes récurrentes, forme fautive puis forme juste>"],
     "acquis": ["<les structures qu'il produit désormais sans erreur>"]
   }
@@ -227,9 +335,13 @@ JAMAIS. Une transcription courte et fidèle vaut infiniment mieux qu'une longue
 phrase inventée : lui la relit, et s'il ne reconnaît pas ses mots, il perd
 confiance en toi.
 
-Quand le son est confus, tu as deux devoirs :
+Quand le son est confus, tu as trois devoirs :
   1. mettre true dans "doute" ;
-  2. le lui demander dans ta réplique, au lieu de faire semblant d'avoir compris.
+  2. remplir "hypotheses" avec les deux ou trois transcriptions possibles, la
+     plus probable en premier. Elles s'affichent à l'écran et il choisit d'un
+     geste — c'est infiniment moins pénible que de répéter toute sa phrase.
+     Propose de VRAIES alternatives, qui diffèrent sur le mot dont tu doutes ;
+  3. le lui demander dans ta réplique, au lieu de faire semblant d'avoir compris.
      « Ndax "bakh na" nga wax ? » vaut mieux que de partir sur une supposition.
 
 Ne devine pas. Demander n'est pas un échec, c'est ce que fait tout interlocuteur
@@ -284,6 +396,64 @@ function decrireProfil(profil) {
   return lignes.join("\n");
 }
 
+// L'objectif de séance ne survit que s'il revient au modèle à chaque tour :
+// sans cela, il en réinvente un, et l'apprenant a l'impression de tourner
+// en rond alors qu'il devrait sentir qu'il avance.
+function decrireCap(objectif, avancee) {
+  if (!objectif) {
+    return (
+      "LE CAP : aucun objectif n'est encore fixé. Écoute-le, puis annonce-lui " +
+      "en une phrase de wolof ce que vous allez travailler aujourd'hui, tiré " +
+      "de ce qu'il vient de te dire. Mets-le dans \"objectif\" et mets 0 dans " +
+      '"avancee".'
+    );
+  }
+
+  const niveau = Math.max(0, Math.min(3, parseInt(avancee, 10) || 0));
+  const etat = [
+    "il vient de l'entendre, il n'a rien produit encore",
+    "il essaie, avec ton aide, encore beaucoup d'erreurs",
+    "il y arrive presque seul, tu ne corriges qu'un détail",
+    "c'est acquis, il le fait seul",
+  ][niveau];
+
+  return [
+    "LE CAP EN COURS, à reprendre tel quel :",
+    '  "objectif" : ' + objectif,
+    '  "avancee"  : ' + niveau + " — " + etat,
+    "",
+    "Recopie CE MÊME objectif dans ta réponse, mot pour mot. N'en invente pas",
+    "un autre : il s'affiche à l'écran, et le voir changer à chaque phrase",
+    "donne le sentiment de tourner en rond.",
+    "",
+    niveau >= 3
+      ? "Il l'a atteint. Dis-le-lui — il a le droit d'être fier — puis propose " +
+        "un nouvel objectif qui s'appuie dessus, et remets \"avancee\" à 0."
+      : "Fais monter \"avancee\" dès qu'il progresse vraiment. Si elle stagne " +
+        "depuis plusieurs tours, c'est que l'objectif est trop large : " +
+        "remplace-le par un plus étroit, atteignable aujourd'hui.",
+  ].join("\n");
+}
+
+// Les mots wolof qu'il a déjà employés sont ceux que le modèle massacre le
+// plus : rares, propres à lui, absents des corpus. On les relit dans
+// l'historique pour les lui souffler avant la prochaine écoute.
+function motsDejaEmployes(historique) {
+  const mots = [];
+  (Array.isArray(historique) ? historique : [])
+    .filter((tour) => tour && tour.role !== "coach" && typeof tour.texte === "string")
+    .slice(-20)
+    .forEach((tour) => {
+      tour.texte
+        .toLowerCase()
+        .split(/[^a-zàâäéèêëïîôöùûüçñŋ'-]+/i)
+        .forEach((mot) => {
+          if (mot.length > 2) mots.push(mot);
+        });
+    });
+  return [...new Set(mots)].slice(0, 40);
+}
+
 // Les douze derniers tours suffisent à tenir le fil sans alourdir la requête.
 function construireHistorique(historique) {
   return (Array.isArray(historique) ? historique : [])
@@ -302,17 +472,32 @@ function extraireReponse(analyse) {
     coach: String(analyse.coach || "").trim(),
     prononciation: String(analyse.prononciation || "").trim(),
     anglais: String(analyse.anglais || "").trim(),
+    anglaisSon: String(analyse.anglaisSon || "").trim(),
+    anglaisSens: String(analyse.anglaisSens || "").trim(),
     nuance: String(analyse.nuance || "").trim(),
     theme: String(analyse.theme || "").trim().slice(0, 60),
+    objectif: String(analyse.objectif || "").trim().slice(0, 120),
+    avancee: Math.max(0, Math.min(3, parseInt(analyse.avancee, 10) || 0)),
+    hypotheses: (Array.isArray(analyse.hypotheses) ? analyse.hypotheses : [])
+      .map((h) => String(h || "").trim())
+      .filter(Boolean)
+      .slice(0, 3),
     profil: analyse.profil && typeof analyse.profil === "object" ? analyse.profil : null,
   };
 }
 
 // Un seul appel : Gemini écoute le wolof et répond en coach.
 // Whisper ne connaît pas le wolof — Gemini, si.
-async function interrogerGemini(parts, historique, profil) {
+async function interrogerGemini(parts, historique, profil, cap) {
   const resultat = await demanderJson(
-    [CONSIGNE_COACH, decrireLexique(), decrireProfil(profil), FORMAT_JSON]
+    [
+      CONSIGNE_COACH,
+      decrireLexique(),
+      decrireProfil(profil),
+      decrireCap(cap && cap.objectif, cap && cap.avancee),
+      amorcerEcoute(motsDejaEmployes(historique)),
+      FORMAT_JSON,
+    ]
       .filter(Boolean)
       .join("\n\n"),
     [...construireHistorique(historique), { role: "user", parts }]
@@ -335,7 +520,8 @@ module.exports = async function handler(req, res) {
     return res.status(405).json({ error: "Méthode non autorisée, utilise POST." });
   }
 
-  const { audioBase64, mimeType, historique, profil, rejete } = req.body || {};
+  const { audioBase64, mimeType, historique, profil, rejete, corrige, cap } =
+      req.body || {};
   if (!audioBase64) {
     return res.status(400).json({ error: "Champ 'audioBase64' manquant dans le corps de la requête." });
   }
@@ -353,7 +539,14 @@ module.exports = async function handler(req, res) {
     // 1. Gemini écoute le wolof et répond en coach, en un seul appel.
     // Quand il rejette une transcription, on le dit au modèle : sans cela il
     // réentend la même chose et propose la même erreur.
-    const amorce = rejete
+    // Il a choisi parmi les lectures proposées : on ne réécoute pas, on le croit.
+    const amorce = corrige
+      ? 'Tu avais hésité, et il vient de te confirmer qu\'il a dit exactement : ' +
+        '« ' + String(corrige).slice(0, 300) + ' ». C\'est la vérité, tu ne la ' +
+        'discutes pas et tu ne re-transcris pas autrement. Recopie-la telle ' +
+        'quelle dans "wolof", mets "doute" à false, laisse "hypotheses" vide, ' +
+        "et réponds-lui normalement, sans commenter l'incident."
+      : rejete
       ? 'Tu avais transcrit « ' + String(rejete).slice(0, 300) + ' », et il te dit ' +
         "que ce n'est PAS ce qu'il a dit. Il répète maintenant la même phrase. " +
         "Écoute autrement, syllabe par syllabe, et propose une transcription " +
@@ -367,7 +560,8 @@ module.exports = async function handler(req, res) {
         { inline_data: { mime_type: mimeType || "audio/wav", data: audioBase64 } },
       ],
       historique,
-      profil
+      profil,
+      cap
     );
 
     // 2. Repli : si Gemini a refusé l'audio, Hugging Face transcrit et
@@ -414,9 +608,14 @@ module.exports = async function handler(req, res) {
       coach: echange.coach,
       prononciation: echange.prononciation || echange.coach,
       anglais: echange.anglais,
+      anglaisSon: echange.anglaisSon,
+      anglaisSens: echange.anglaisSens,
       nuance: echange.nuance,
       theme: echange.theme,
+      objectif: echange.objectif,
+      avancee: echange.avancee,
       doute: echange.doute,
+      hypotheses: echange.hypotheses,
       profil: echange.profil,
     });
   } catch (err) {
