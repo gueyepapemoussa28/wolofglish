@@ -1813,9 +1813,29 @@
        ================================================================== */
 
     var SEUIL_PLANCHER = 0.012;  // en deçà, c'est du bruit de fond
-    var SILENCE_FIN_MS = 1100;   // silence qui signe la fin d'une phrase
     var PAROLE_MIN_MS = 350;     // en deçà, c'est un bruit, pas une phrase
     var PAROLE_MAX_MS = 20000;   // au-delà, on envoie sans attendre le silence
+
+    // Combien de silence avant de considérer qu'il a fini de parler.
+    //
+    // Une seule valeur ne peut pas convenir à tout le monde : quelqu'un qui
+    // cherche ses premiers mots met trois à cinq secondes, et une coupure à
+    // 1,1 s lui prend la parole pendant qu'il réfléchit. C'est le contraire
+    // de ce que fait un bon professeur, qui laisse le blanc s'installer.
+    // Plus il est débutant, plus on attend.
+    var SILENCE_PAR_NIVEAU = {
+      "premiers-mots": 3800,
+      debutant:        3200,
+      debrouille:      2400,
+      intermediaire:   1700,
+      alaise:          1300,
+      avance:          1300
+    };
+
+    function silenceAutorise() {
+      var niveau = profil && profil.niveau;
+      return SILENCE_PAR_NIVEAU[niveau] || SILENCE_PAR_NIVEAU.debutant;
+    }
 
     var appel = {
       actif: false,
@@ -1916,7 +1936,8 @@
       }
 
       var assezParle = appel.parleDepuis && maintenant - appel.parleDepuis > PAROLE_MIN_MS;
-      var silenceFini = appel.silenceDepuis && maintenant - appel.silenceDepuis > SILENCE_FIN_MS;
+      var attente = silenceAutorise();
+      var silenceFini = appel.silenceDepuis && maintenant - appel.silenceDepuis > attente;
       var tropLong = appel.parleDepuis && maintenant - appel.parleDepuis > PAROLE_MAX_MS;
 
       if ((assezParle && silenceFini) || tropLong) {
@@ -1926,7 +1947,7 @@
         phaseAppel("reflechit");
         dire("Coach bi dafay xalaat…");
         arreterCapture(); // le gestionnaire d'arrêt se charge de l'envoi
-      } else if (appel.silenceDepuis && !assezParle && maintenant - appel.silenceDepuis > SILENCE_FIN_MS) {
+      } else if (appel.silenceDepuis && !assezParle && maintenant - appel.silenceDepuis > attente) {
         // Un bruit bref, pas une phrase : on repart sur un enregistrement neuf.
         appel.parleDepuis = 0;
         appel.silenceDepuis = 0;
