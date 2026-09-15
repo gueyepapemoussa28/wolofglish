@@ -15,6 +15,7 @@
 
 const voixGemini = require("../lib/voix");
 const elevenlabs = require("../lib/elevenlabs");
+const { corriger } = require("../lib/prononcer");
 
 // Le ton demandé se retrouve dans la voix : « chaleureusement, comme un ami
 // qui encourage » produisait un enthousiasme fatigant à l'usage.
@@ -43,6 +44,7 @@ module.exports = async function handler(req, res) {
     let resultat = null;
     let source = "";
     let raisonRepli = "";
+    let motsCorriges = "";
 
     if (langue === "anglais") {
       // La voix d'ElevenLabs d'abord si le compte l'autorise, sinon Gemini.
@@ -73,9 +75,19 @@ module.exports = async function handler(req, res) {
       if (!resultat.ok && contenuSecours) {
         // On garde la raison de l'échec : sans elle, le repli masque la panne.
         raisonRepli = String(resultat.details || "inconnue").slice(0, 200);
+
+        // Gemini lit le vrai wolof ; ElevenLabs, non — il lit ce qu'on lui
+        // écrit. C'est donc ici, et seulement ici, qu'on applique le
+        // dictionnaire de prononciation : il passe après la réécriture du
+        // modèle et impose les corrections que Moussa a documentées.
+        const affine = corriger(contenuSecours);
+        if (affine.corriges.length) {
+          motsCorriges = affine.corriges.slice(0, 12).join(" ");
+        }
+
         // Le wolof réécrit se lit avec une phonétique française : sans ce
         // forçage, le moteur le lit à l'anglaise et rend du charabia.
-        resultat = await elevenlabs.synthetiser(contenuSecours, "fr");
+        resultat = await elevenlabs.synthetiser(affine.texte, "fr");
         source = "elevenlabs-secours";
       }
     }
@@ -95,6 +107,11 @@ module.exports = async function handler(req, res) {
     res.setHeader("X-Voix-Source", source);
     if (raisonRepli) {
       res.setHeader("X-Voix-Repli", encodeURIComponent(raisonRepli));
+    }
+    // Rend visible ce que le dictionnaire a corrigé : sans cela, on ne sait
+    // pas si une ligne ajoutée a bien pris effet.
+    if (motsCorriges) {
+      res.setHeader("X-Voix-Dico", encodeURIComponent(motsCorriges));
     }
     return res.end(resultat.audio);
   } catch (err) {
