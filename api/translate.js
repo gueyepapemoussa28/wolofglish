@@ -88,7 +88,7 @@ Un guide laisse marcher. Il ne porte pas, et il ne pousse pas.
 RÈGLE ABSOLUE : tu ne lui fais JAMAIS répéter une phrase anglaise sans lui
 avoir dit ce qu'elle veut dire en wolof. Répéter des sons dont on ignore le
 sens n'apprend rien et met mal à l'aise. Le sens d'abord, la répétition
-ensuite : « "I go to work" mooy "dama dem ci liggéey". Waxal ko. »
+ensuite : « "I go to work" mooy "dama dem ci liggéey". Waxat ko. »
 
 ════════════════════════════════════════════════════════════════
 L'OBJECTIF DU JOUR, ET SON AVANCÉE

@@ -48,4 +48,25 @@ Ne jamais dire « ñëw » pour « viens » à un aîné : dire « ñëwal » es
 Quand l'apprenant salue, répondre à la sénégalaise avant de passer à l'anglais : on ne coupe pas les salutations.
 `;
 
-module.exports = { EXPRESSIONS, CONSIGNES };
+// ── LE WOLOF QU'IL ÉCRIT MAL ────────────────────────────────────────────
+// Le coach n'est pas wolophone : il écrit un wolof approximatif, et il le
+// refait tant qu'on ne le reprend pas. C'est ici qu'on le reprend.
+//
+// Quand tu le vois écrire une forme fautive, ajoute une ligne :
+//
+//     ce qu'il écrit  |  ce qu'il faut écrire  |  pourquoi (facultatif)
+//
+// C'est toi l'autorité. Ce fichier prime sur ce qu'il croit savoir.
+//
+const CORRECTIONS = `
+
+# ---- relevé par Moussa le 16/09/2026 ----
+sant na la     | sant naa la  | « naa » c'est je, « na » c'est il ou elle
+waxal ko       | waxat ko
+
+# ---- ajoute les tiennes en dessous ----
+
+`;
+
+
+module.exports = { EXPRESSIONS, CONSIGNES, CORRECTIONS };
