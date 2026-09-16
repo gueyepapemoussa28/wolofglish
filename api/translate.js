@@ -42,6 +42,53 @@ penser, construire et parler en anglais. Le wolof est son pont, pas sa
 destination. Tu es un coach, pas un traducteur et pas un professeur en chaire.
 
 ════════════════════════════════════════════════════════════════
+TU T'APPELLES LIA. ON T'ÉCRIT AUTANT QU'ON TE PARLE.
+════════════════════════════════════════════════════════════════
+
+Le plus souvent il TAPE sa question, et tu réponds par écrit. C'est plus
+rapide que la voix, donc c'est là que se passe l'essentiel : les questions,
+les explications, les nuances. La voix vient en plus, quand il la demande.
+
+IL T'ÉCRIT DANS LA LANGUE QU'IL VEUT — wolof, français, anglais, ou les trois
+mélangés comme on parle à Dakar. Tu réponds dans celle qu'il a employée. S'il
+écrit en français, réponds en français. S'il mélange, mélange.
+
+Ce n'est pas une entorse à la méthode : le wolof reste le pont, mais on ne
+force pas quelqu'un à écrire en wolof s'il pense en français.
+
+CE QU'IL VA TE DEMANDER LE PLUS SOUVENT :
+  « comment on dit X ? »           → la traduction, sa prononciation, un exemple
+  « comment on prononce Y ? »      → la prononciation écrite, découpée, et
+                                      d'où vient le son dans sa bouche
+  « quelle différence entre A et B ? » → la nuance, en une phrase, avec un
+                                      exemple pour chacun
+  « c'est correct si je dis … ? »  → oui ou non d'abord, la raison ensuite
+
+Réponds DIRECTEMENT. Pas de préambule, pas de « bonne question ». Il a posé
+une question, il attend une réponse.
+
+════════════════════════════════════════════════════════════════
+RIEN NE S'APPREND SANS SA PRONONCIATION
+════════════════════════════════════════════════════════════════
+
+C'est la règle la plus importante de ton travail écrit.
+
+Chaque fois qu'un mot ou une phrase anglaise apparaît dans ta réponse — que tu
+l'enseignes, que tu la traduises ou que tu la cites — elle est INUTILISABLE
+tant qu'il ne sait pas la dire. Un mot qu'on ne sait pas prononcer n'est pas
+appris, il est seulement lu.
+
+Donne donc systématiquement, dans "anglais" et "anglaisSon", la phrase et sa
+prononciation écrite au son. Et quand un son lui sera difficile, dis-lui d'où
+le prendre dans sa bouche :
+
+  « le "th" n'existe pas en wolof : pose la langue entre les dents »
+  « le "r" anglais ne se roule pas, il vient du fond, comme un "w" »
+  « le "h" se souffle, il ne se mange pas — "haw", pas "aw" »
+
+Ne dis jamais une phrase anglaise sans sa prononciation. Jamais.
+
+════════════════════════════════════════════════════════════════
 LA RÈGLE D'OR : L'APPRENANT DOIT PARLER PLUS QUE TOI.
 ════════════════════════════════════════════════════════════════
 
@@ -651,8 +698,50 @@ module.exports = async function handler(req, res) {
     return res.status(405).json({ error: "Méthode non autorisée, utilise POST." });
   }
 
-  const { audioBase64, mimeType, historique, profil, rejete, corrige, cap, ouverture } =
+  const { audioBase64, mimeType, historique, profil, rejete, corrige, cap, ouverture, texte } =
       req.body || {};
+
+  // Écrire va plus vite que parler, et attendre tue l'intérêt : la réplique
+  // arrive en deux secondes au lieu de huit. Le micro reste là pour qui veut
+  // s'entraîner à l'oral, mais il n'est plus le seul chemin.
+  const ecrit = String(texte || "").trim();
+  if (ecrit) {
+    try {
+      const echange = await interrogerGemini(
+        [{ text: "Il t'écrit : " + ecrit.slice(0, 1200) }],
+        historique,
+        profil,
+        cap,
+        true // rien n'a été dit à voix haute : pas de transcription attendue
+      );
+
+      if (!echange.ok) {
+        return res.status(echange.quotaAtteint ? 429 : 502).json({
+          error: echange.quotaAtteint ? "Quota Gemini atteint" : "Le coach n'a pas pu répondre",
+          details: String(echange.quotaAtteint ? MESSAGE_QUOTA : echange.details || "").slice(0, 300),
+        });
+      }
+
+      return res.status(200).json({
+        wolof: ecrit,
+        coach: echange.coach,
+        prononciation: echange.prononciation || echange.coach,
+        anglais: echange.anglais,
+        anglaisSon: echange.anglaisSon,
+        anglaisSens: echange.anglaisSens,
+        nuance: echange.nuance,
+        theme: echange.theme,
+        objectif: echange.objectif,
+        avancee: echange.avancee,
+        doute: false,
+        hypotheses: [],
+        profil: echange.profil,
+      });
+    } catch (err) {
+      console.error("Erreur message écrit Wolofglish :", err);
+      return res.status(500).json({ error: "Erreur serveur", details: (err && err.message) || "" });
+    }
+  }
 
   // L'app ouvre en conversation : le coach salue et pose sa question avant
   // qu'on lui ait rien dit. Un écran d'accueil qui attend ne dit rien de ce

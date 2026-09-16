@@ -19,7 +19,7 @@
       --green: #4fc3a1;
       --red: #e56b6f;
       --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-      --barre: 148px;
+      --barre: 208px;
     }
 
     * { box-sizing: border-box; }
@@ -575,6 +575,57 @@
     .souci strong { display: block; margin-bottom: 3px; color: #fff; }
 
     /* ---------- Barre du micro ---------- */
+    /* Écrire va plus vite que parler, et l'attente tue l'intérêt. Le champ
+       passe donc devant : c'est le chemin principal. Le micro reste là pour
+       qui veut s'entraîner à l'oral. */
+    .saisie {
+      pointer-events: auto;
+      width: 100%;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: var(--card);
+      border: 1px solid var(--card-border);
+      border-radius: 26px;
+      padding: 5px 5px 5px 16px;
+      transition: border-color 0.2s;
+    }
+
+    .saisie:focus-within { border-color: var(--accent); }
+
+    .champ {
+      flex: 1;
+      min-width: 0;
+      background: none;
+      border: none;
+      outline: none;
+      color: var(--text);
+      font-family: var(--font);
+      font-size: 16px; /* en deçà, les iPhone zooment tout seuls */
+      padding: 10px 0;
+    }
+
+    .champ::placeholder { color: var(--text-dim); opacity: 0.75; }
+
+    .envoi {
+      flex: none;
+      width: 38px; height: 38px;
+      border-radius: 50%;
+      border: none;
+      background: var(--accent);
+      color: #12202c;
+      font-size: 19px;
+      font-weight: 700;
+      line-height: 1;
+      cursor: pointer;
+      opacity: 0.35;
+      transition: opacity 0.2s, transform 0.15s;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    .envoi.prete { opacity: 1; }
+    .envoi:active { transform: scale(0.92); }
+
     .barre {
       position: absolute;
       left: 0; right: 0; bottom: 0;
@@ -768,6 +819,12 @@
     </main>
 
     <div class="barre">
+      <form id="saisie" class="saisie">
+        <input id="champ" class="champ" type="text" autocomplete="off"
+               enterkeyhint="send" aria-label="Écris ta question"
+               placeholder="Bindal wala laaj ma…" />
+        <button id="envoi" class="envoi" type="submit" aria-label="Envoyer">↑</button>
+      </form>
       <div class="rangee">
       <div class="micro-zone">
         <span class="onde"></span>
@@ -836,6 +893,9 @@
     var appelBtn = document.getElementById("appel");
     var temoin = document.getElementById("temoin");
     var baseline = document.getElementById("baseline");
+    var saisie = document.getElementById("saisie");
+    var champ = document.getElementById("champ");
+    var envoi = document.getElementById("envoi");
 
     /* ==================================================================
        3. ÉTAT
@@ -1044,7 +1104,7 @@
       // Le coach se trompe parfois d'écoute. Plutôt que de le laisser partir
       // sur une phrase qu'on n'a pas dite, on peut la lui refuser : il
       // réécoutera en sachant que sa première lecture était fausse.
-      if (tour && typeof tour !== "string") {
+      if (tour && typeof tour !== "string" && !tour.ecrit) {
         var corriger = creer("button", "corriger", tour.doute
           ? "Ce n'est pas ça ? Redis-le"
           : "Ce n'est pas ce que j'ai dit");
@@ -2129,6 +2189,100 @@
 
     btnVoix.textContent = voixActive ? "🔊" : "🔇";
     btnVoix.classList.toggle("actif", voixActive);
+
+    /* ==================================================================
+       13. ÉCRIRE À LIA
+       ================================================================== */
+
+    // Une réplique écrite arrive en deux secondes, la même dite en huit.
+    // L'attente est ce qui fait décrocher, alors on écrit d'abord et on
+    // écoute ensuite, quand on le décide.
+    function envoyerTexte(message) {
+      if (etat !== "repos" || !message) return;
+
+      accueil.hidden = true;
+      var monTour = { role: "moi", wolof: message, doute: false, hypotheses: [], ecrit: true };
+      conversation.push(monTour);
+      afficherMoi(monTour);
+      descendre();
+
+      var memoire = historiquePourCoach();
+      setEtat("envoie");
+      dire("Lia dafay xalaat…");
+
+      fetch(API_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          texte: message,
+          historique: memoire,
+          profil: profil,
+          cap: capEnCours()
+        })
+      })
+        .then(function (reponse) {
+          return reponse.text().then(function (brut) {
+            var donnees = null;
+            try { donnees = JSON.parse(brut); } catch (e) { donnees = null; }
+            if (!reponse.ok) {
+              var bouts = donnees ? [donnees.error, donnees.details].filter(Boolean) : [];
+              throw new Error(bouts.join(" — ").slice(0, 400) || "Le serveur a répondu " + reponse.status + ".");
+            }
+            if (!donnees) throw new Error("Réponse illisible du serveur.");
+            return donnees;
+          });
+        })
+        .then(function (donnees) {
+          var tourCoach = {
+            role: "coach",
+            coach: donnees.coach,
+            prononciation: donnees.prononciation || donnees.coach,
+            anglais: donnees.anglais || "",
+            anglaisSon: donnees.anglaisSon || "",
+            anglaisSens: donnees.anglaisSens || "",
+            nuance: donnees.nuance || "",
+            theme: donnees.theme || "",
+            objectif: donnees.objectif || "",
+            avancee: typeof donnees.avancee === "number" ? donnees.avancee : 0
+          };
+          conversation.push(tourCoach);
+          afficherCoach(tourCoach);
+
+          if (donnees.profil) {
+            profil = donnees.profil;
+            sauverProfil();
+            afficherNiveau();
+          }
+
+          sauver();
+          afficherTrame();
+          descendre();
+          setEtat("repos");
+          dire("Bindal wala wax ma");
+          // Pas de lecture automatique : il lit. Le bouton « Écouter » est
+          // là s'il veut entendre — lancer la voix sur un message écrit
+          // reviendrait à lui imposer l'attente qu'on vient de lui épargner.
+        })
+        .catch(function (err) {
+          setEtat("repos");
+          afficherSouci("Lia n'a pas pu répondre", (err && err.message) || "Réessaie.");
+          descendre();
+        });
+    }
+
+    saisie.addEventListener("submit", function (evt) {
+      evt.preventDefault();
+      var message = champ.value.trim();
+      if (!message) return;
+      champ.value = "";
+      envoi.classList.remove("prete");
+      debloquerVoix(); // le premier envoi débloque aussi la voix pour la suite
+      envoyerTexte(message);
+    });
+
+    champ.addEventListener("input", function () {
+      envoi.classList.toggle("prete", champ.value.trim().length > 0);
+    });
 
     /* ==================================================================
        13. LE COACH OUVRE
