@@ -1,3 +1,5 @@
+const BARREAUX = '  "premiers-mots"  Il ne parle pas anglais. Pas un mot.\n                   Presque tout en wolof. Deux à quatre mots d\'anglais par\n                   tour, jamais plus. Le sens d\'abord, TOUJOURS. Un seul mot\n                   juste est une victoire : dis-le-lui. Ne corrige que ce qui\n                   empêche de comprendre. Jamais de grammaire, jamais de\n                   conjugaison, jamais de terme technique. On ne parle pas de\n                   « présent simple » à quelqu\'un qui découvre « I am ».\n\n  "debutant"       Il connaît quelques mots et des phrases toutes faites.\n                   Wolof dominant, phrases anglaises de trois à cinq mots,\n                   construction très guidée, beaucoup de répétition variée.\n\n  "debrouille"     Il fait des phrases simples et se fait comprendre.\n                   Moitié wolof, moitié anglais. Tu le laisses produire plus\n                   longtemps avant de corriger. Tu introduis le passé, le\n                   futur, les questions.\n\n  "intermediaire"  Il tient une conversation avec des erreurs.\n                   Anglais dominant, le wolof ne sert plus qu\'à débloquer.\n                   Tu travailles le naturel, pas seulement le correct.\n\n  "alaise"         Il se débrouille vraiment.\n                   Tout en anglais. Tu travailles la nuance, le registre, les\n                   expressions, ce qui sonne juste ou faux à l\'oreille.\n\n';
+
 // api/translate.js
 // Coach d'anglais en wolof — un tour de conversation.
 //
@@ -24,6 +26,7 @@
 const { demanderJson, MESSAGE_QUOTA } = require("../lib/gemini");
 const { decrireLexique, amorcerEcoute } = require("../lib/lexique");
 const { decrireTransparents } = require("../lib/transparents");
+const { corriger } = require("../lib/prononcer");
 
 // Repli historique : Hugging Face ne sert aucun modèle wolof, mais reste
 // utilisable si Gemini refuse l'audio tout en acceptant le texte.
@@ -250,30 +253,7 @@ lui apprend rien, il l'écrase.
   debrouille     : 10 mots maximum
   au-delà        : ce que tu veux
 
-  "premiers-mots"  Il ne parle pas anglais. Pas un mot.
-                   Presque tout en wolof. Deux à quatre mots d'anglais par
-                   tour, jamais plus. Le sens d'abord, TOUJOURS. Un seul mot
-                   juste est une victoire : dis-le-lui. Ne corrige que ce qui
-                   empêche de comprendre. Jamais de grammaire, jamais de
-                   conjugaison, jamais de terme technique. On ne parle pas de
-                   « présent simple » à quelqu'un qui découvre « I am ».
-
-  "debutant"       Il connaît quelques mots et des phrases toutes faites.
-                   Wolof dominant, phrases anglaises de trois à cinq mots,
-                   construction très guidée, beaucoup de répétition variée.
-
-  "debrouille"     Il fait des phrases simples et se fait comprendre.
-                   Moitié wolof, moitié anglais. Tu le laisses produire plus
-                   longtemps avant de corriger. Tu introduis le passé, le
-                   futur, les questions.
-
-  "intermediaire"  Il tient une conversation avec des erreurs.
-                   Anglais dominant, le wolof ne sert plus qu'à débloquer.
-                   Tu travailles le naturel, pas seulement le correct.
-
-  "alaise"         Il se débrouille vraiment.
-                   Tout en anglais. Tu travailles la nuance, le registre, les
-                   expressions, ce qui sonne juste ou faux à l'oreille.
+__ECHELLE__
 
 COMMENT TU SITUES QUELQU'UN DE NOUVEAU
 Ne lui demande jamais « quel est ton niveau ? » — personne ne sait répondre.
@@ -372,7 +352,6 @@ const FORMAT_JSON = `Réponds UNIQUEMENT par un objet JSON valide, sans texte au
   "doute": <true si tu n'es pas sûr d'avoir bien entendu, false sinon>,
   "hypotheses": ["<2 ou 3 transcriptions possibles, la plus probable d'abord — SEULEMENT si \"doute\" est true ; sinon liste vide>"],
   "coach": "<ta réplique en wolof — 120 CARACTÈRES AU PLUS, une ou deux phrases. JAMAIS le même texte que \"wolof\">",
-  "prononciation": "<la même réplique en orthographe française, pour la voix>",
   "anglais": "<la phrase anglaise de ce tour, s'il y en a une ; chaîne VIDE si c'est à lui de la construire seul>",
   "anglaisSon": "<la prononciation de \"anglais\" écrite au son, syllabe accentuée en MAJUSCULES ; vide si \"anglais\" est vide>",
   "anglaisSens": "<ce que \"anglais\" veut dire, en wolof, en quelques mots ; vide si \"anglais\" est vide>",
@@ -428,23 +407,10 @@ leur langue dans un SMS, c'est-à-dire à la française, au son.
 Le test est simple : un Dakarois doit pouvoir le lire à voix haute sans hésiter.
 Garde les mots français tels qu'ils s'écrivent — « contane » reste « contane ».
 
-LA PRONONCIATION DE TA RÉPLIQUE
-Le champ "prononciation" sera lu par une synthèse vocale. Réécris-y ton wolof
-avec l'orthographe française :
-  u → ou, x → kh, ñ → gn, ŋ → ng, c → tch, j → dj, ë → eu,
-  g reste dur (« gi » → « gui »), s reste sourd entre voyelles (« asa » → « assa »).
-Laisse les mots français et anglais exactement tels qu'ils sont : « contane »
-reste « contane », surtout pas « tchontane ».
-
-ET COUPE LES MOTS LONGS EN SYLLABES, par des traits d'union. C'est mesuré :
-sans découpage « liggéey » se lit « ligway », avec découpage il se lit juste.
-
-  liggéey   →  li-gaille        waxtaan  →  wakh-taan
-  jërëjëf   →  djeureu-djeuf    ñaay     →  gnaye
-  baax      →  bakh             jàpp     →  diapp
-
-Le trait d'union ne se voit pas à l'écran : il ne sert qu'à la voix. Ne
-découpe pas les mots de deux syllabes qui passent déjà bien.
+NE T'OCCUPE PAS DE LA PRONONCIATION POUR LA VOIX.
+Un programme s'en charge après toi, à partir de l'alphabet officiel du wolof.
+Il est plus régulier que toi et ne change pas d'avis d'un tour à l'autre.
+Écris ton wolof normalement, c'est tout.
 
 Si l'enregistrement ne contient aucune parole humaine, mets "" dans "wolof".`;
 
@@ -537,6 +503,29 @@ function decrireCap(objectif, avancee, niveau) {
   ].join("\n");
 }
 
+// Les cinq barreaux pèsent 1 600 caractères envoyés à chaque tour, alors
+// qu'un seul décrit l'apprenant. On ne garde que le sien et le suivant :
+// il faut savoir où l'on est, et voir où l'on va.
+const BARREAUX_ORDRE = ["premiers-mots", "debutant", "debrouille", "intermediaire", "alaise"];
+
+function decrireEchelle(niveau) {
+  const blocs = BARREAUX.split(/\n(?=  ")/).filter((b) => b.trim());
+  const index = BARREAUX_ORDRE.indexOf(niveau);
+  if (index === -1) return BARREAUX; // niveau inconnu : on donne tout
+
+  const gardes = blocs.filter((bloc) => {
+    const nom = (bloc.match(/"([a-z-]+)"/) || [])[1];
+    const rang = BARREAUX_ORDRE.indexOf(nom);
+    return rang === index || rang === index + 1;
+  });
+
+  return (
+    "Il est au barreau « " + niveau + " » de cette échelle :\n\n" +
+    gardes.join("\n") +
+    "\n\n(Les autres barreaux ne te sont pas montrés : ils ne le concernent pas.)"
+  );
+}
+
 // Ce qu'on dit au coach quand personne ne lui a encore parlé.
 const AMORCE_OUVERTURE = `Personne ne t'a encore rien dit : c'est TOI qui ouvres.
 
@@ -588,7 +577,6 @@ function extraireReponse(analyse) {
     wolof: String(analyse.wolof || "").trim(),
     doute: analyse.doute === true,
     coach: String(analyse.coach || "").trim(),
-    prononciation: String(analyse.prononciation || "").trim(),
     anglais: String(analyse.anglais || "").trim(),
     anglaisSon: String(analyse.anglaisSon || "").trim(),
     anglaisSens: String(analyse.anglaisSens || "").trim(),
@@ -609,7 +597,7 @@ function extraireReponse(analyse) {
 async function interrogerGemini(parts, historique, profil, cap, ouverture) {
   const resultat = await demanderJson(
     [
-      CONSIGNE_COACH,
+      CONSIGNE_COACH.replace("__ECHELLE__", decrireEchelle(profil && profil.niveau)),
       decrireLexique(),
       decrireTransparents(profil && profil.niveau),
       decrireProfil(profil),
@@ -632,7 +620,11 @@ async function interrogerGemini(parts, historique, profil, cap, ouverture) {
   if (!analyse.wolof && !ouverture) {
     return { ok: false, audioVide: true, details: "Aucune parole détectée." };
   }
-  return { ok: true, ...analyse };
+
+  // La voix lit une réécriture calculée par lib/prononcer : l'alphabet wolof
+  // est régulier, le code le suit mieux que le modèle et ne change pas d'avis
+  // d'un tour à l'autre. Le dictionnaire de Moussa s'y applique au passage.
+  return { ok: true, ...analyse, prononciation: corriger(analyse.coach).texte };
 }
 
 module.exports = async function handler(req, res) {
