@@ -63,6 +63,9 @@ const CORRECTIONS = `
 # ---- relevé par Moussa le 16/09/2026 ----
 sant na la     | sant naa la  | « naa » c'est je, « na » c'est il ou elle
 waxal ko       | waxat ko
+dama dem ci liggéey | damay dem liggéey yi
+bougg naa      | bëgg naa
+mena wakh      | mënn a wax
 
 # ---- ajoute les tiennes en dessous ----
 

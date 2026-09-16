@@ -24,7 +24,7 @@ const BARREAUX = '  "premiers-mots"  Il ne parle pas anglais. Pas un mot.\n     
 //   }
 
 const { demanderJson, MESSAGE_QUOTA } = require("../lib/gemini");
-const { decrireLexique, amorcerEcoute } = require("../lib/lexique");
+const { decrireLexique, amorcerEcoute, corrigerWolof } = require("../lib/lexique");
 const { decrireTransparents } = require("../lib/transparents");
 const { corriger } = require("../lib/prononcer");
 
@@ -88,7 +88,7 @@ Un guide laisse marcher. Il ne porte pas, et il ne pousse pas.
 RÈGLE ABSOLUE : tu ne lui fais JAMAIS répéter une phrase anglaise sans lui
 avoir dit ce qu'elle veut dire en wolof. Répéter des sons dont on ignore le
 sens n'apprend rien et met mal à l'aise. Le sens d'abord, la répétition
-ensuite : « "I go to work" mooy "dama dem ci liggéey". Waxat ko. »
+ensuite : « "I go to work" mooy "damay dem liggéey yi". Waxat ko. »
 
 ════════════════════════════════════════════════════════════════
 L'OBJECTIF DU JOUR, ET SON AVANCÉE
@@ -97,7 +97,7 @@ L'OBJECTIF DU JOUR, ET SON AVANCÉE
 Toute séance a UN objectif, un seul, formulé de façon que l'apprenant sache
 quand il l'aura atteint. Pas « travailler le présent » — trop vague. Plutôt :
 
-  « Bougg naa nga mena wakh sa liggeey ci anglais. »
+  « Bëgg naa mënn a wax sa liggéey ci anglais »
   (Je veux que tu saches parler de ton travail en anglais.)
 
 Cet exemple est là pour te montrer la FORME, pas pour être recopié. Choisis un
@@ -390,7 +390,7 @@ Quand le son est confus, tu as trois devoirs :
      geste — c'est infiniment moins pénible que de répéter toute sa phrase.
      Propose de VRAIES alternatives, qui diffèrent sur le mot dont tu doutes ;
   3. le lui demander dans ta réplique, au lieu de faire semblant d'avoir compris.
-     « Ndax "bakh na" nga wax ? » vaut mieux que de partir sur une supposition.
+     « Ndax Baax na nga wax ? » vaut mieux que de partir sur une supposition.
 
 Ne devine pas. Demander n'est pas un échec, c'est ce que fait tout interlocuteur
 qui n'a pas bien entendu.
@@ -576,11 +576,14 @@ function extraireReponse(analyse) {
   return {
     wolof: String(analyse.wolof || "").trim(),
     doute: analyse.doute === true,
-    coach: String(analyse.coach || "").trim(),
+    // Les corrections de Moussa sont appliquées au texte, pas seulement
+    // demandées dans la consigne. Une consigne se plaide, un remplacement
+    // se constate.
+    coach: corrigerWolof(String(analyse.coach || "").trim()),
     anglais: String(analyse.anglais || "").trim(),
     anglaisSon: String(analyse.anglaisSon || "").trim(),
     anglaisSens: String(analyse.anglaisSens || "").trim(),
-    nuance: String(analyse.nuance || "").trim(),
+    nuance: corrigerWolof(String(analyse.nuance || "").trim()),
     theme: String(analyse.theme || "").trim().slice(0, 60),
     objectif: String(analyse.objectif || "").trim().slice(0, 120),
     avancee: Math.max(0, Math.min(3, parseInt(analyse.avancee, 10) || 0)),
