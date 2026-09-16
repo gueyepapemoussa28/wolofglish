@@ -16,7 +16,7 @@
 // les morphèmes wolof, car « bu », « ji », « na » se confondent à l'écrit
 // avec du français tout en étant les mots les plus courants de la langue.
 //
-// 5999 mots. Tu peux en ajouter à la fin, un par ligne, en minuscules : c'est
+// 5984 mots. Tu peux en ajouter à la fin, un par ligne, en minuscules : c'est
 // utile quand le coach emploie un mot que la liste ignore et l'écorche.
 // ════════════════════════════════════════════════════════════════════════
 
@@ -90,7 +90,7 @@ aggee
 aggoon
 agsee
 agsi
-agsil ak jàmm ci sa kër
+agsil
 ahakay
 ahlu
 ahmad
@@ -133,6 +133,7 @@ alku
 all
 allaaji
 allaaxira
+allah
 allub
 alluwa
 alluway
@@ -308,8 +309,6 @@ ayubés
 añ
 añs
 ba
-ba beneen yoon
-ba suba ak jam
 baa
 baadoolo
 baak
@@ -612,7 +611,7 @@ boroomi
 boroomug
 borosaadaa
 bos
-bosni hersegowin
+bosni
 botswana
 bowas
 brand
@@ -621,8 +620,6 @@ britani
 brusiya
 brëtaañ
 bu
-bu jëkk
-bu yàgg
 buddin
 bukki
 bul
@@ -637,7 +634,7 @@ buntam
 bunti
 buntu
 bunu
-burkina faso
+burkina
 buruundi
 buso
 butéel
@@ -730,7 +727,7 @@ cedeao
 cedesyas
 cee
 ceeb
-ceebu jën
+ceebu
 cees
 ceet
 ceeñeer
@@ -867,7 +864,6 @@ damaa
 damaas
 damas
 damay
-damay wut
 damm
 dammat
 dammee
@@ -1008,7 +1004,6 @@ dem
 demagul
 demaguma
 demal
-demal ak jàmm
 demandoo
 demb
 dembeen
@@ -1205,7 +1200,6 @@ doxoon
 doxub
 doxul
 doy
-doy na
 doyadi
 doyal
 doye
@@ -1214,8 +1208,6 @@ doyloo
 doylu
 doyoon
 du
-du dara
-du dëgg
 dugal
 dugg
 duggaat
@@ -1231,7 +1223,6 @@ dugub
 dugubi
 dul
 duma
-duma ko fàtte
 dumaa
 dun
 dund
@@ -1327,6 +1318,7 @@ egsi
 ela
 elam
 elasar
+eleen
 eleew
 eleg
 elektron
@@ -1335,6 +1327,7 @@ elleg
 elyakim
 emb
 emboon
+end
 endustri
 enog
 epp
@@ -1420,6 +1413,7 @@ farmasi
 fas
 fasante
 fase
+faso
 fasoon
 fasu
 fat
@@ -1503,6 +1497,7 @@ fexeleen
 fey
 feye
 feyul
+fi
 figg
 fii
 fiir
@@ -1575,8 +1570,6 @@ fu
 fuddën
 fuglu
 fukk
-fukk ak benn
-fukk ak ñaar
 fukkeel
 fukkeelu
 fukki
@@ -1593,6 +1586,7 @@ fànn
 fànni
 fàttali
 fàttaliku
+fàttalikul
 fàtte
 fàttee
 fàww
@@ -1785,7 +1779,6 @@ ginnaw
 ginne
 ginoon
 gis
-gis gis
 gisaane
 gisal
 gisati
@@ -1878,7 +1871,7 @@ gëmmeentu
 gëmméentu
 gëmul
 gëmuleen
-gëmuma ko
+gëmuma
 gën
 gëna
 gënee
@@ -1895,6 +1888,7 @@ góorlu
 haraam
 hawfii
 hegel
+hersegowin
 hertz
 hip
 holand
@@ -1925,7 +1919,7 @@ imbraatóor
 imeel
 imit
 inaane
-inch allah
+inch
 indaale
 indaaleel
 indi
@@ -2032,7 +2026,7 @@ jalub
 jam
 jamaa
 jamano
-jamb suukër
+jamb
 jambaar
 jambaare
 jambur
@@ -2329,12 +2323,6 @@ juroomi
 juru
 jurukaayu
 juróom
-juróom benn
-juróom benn fukk
-juróom fukk
-juróom ñaar
-juróom ñent
-juróom ñett
 juróomi
 juuf
 juum
@@ -2345,7 +2333,7 @@ juxraaf
 juy
 jàdd
 jàkk
-jàkka ji
+jàkka
 jàkkaarloo
 jàll
 jàllee
@@ -2360,6 +2348,7 @@ jàngal
 jàngale
 jàngalekat
 jàngee
+jàngkat
 jàngle
 jàngoro
 jàngu
@@ -2374,6 +2363,7 @@ jébbalu
 jéego
 jéeki
 jéem
+jéemal
 jéeri
 jéggaani
 jéggal
@@ -2405,7 +2395,7 @@ jëmmi
 jën
 jënd
 jënu
-jërë jëf
+jërë
 jërëjëf
 jëwrin
 jëwrini
@@ -2669,6 +2659,7 @@ laal
 laalante
 laale
 laalee
+laanka
 laata
 laataa
 laax
@@ -2780,6 +2771,7 @@ lewi
 lewul
 lex
 leya
+leyoon
 li
 liba
 libaa
@@ -2857,6 +2849,7 @@ loxoom
 loxoy
 ltam
 lu
+lucia
 luga
 luggey
 lujum
@@ -2873,7 +2866,6 @@ làkk
 làkki
 làkku
 làmmiñ
-làmmiñ wi
 làmp
 làqoo
 làqu
@@ -2992,6 +2984,7 @@ mar
 maraakes
 marb
 mardose
+marino
 marok
 marsandiisi
 marse
@@ -3117,7 +3110,6 @@ mbuus
 mbuusum
 mbàkke
 mbàmbulaan
-mbàmbulaan gu end
 mbàmbulaanug
 mbég
 mbëggeel
@@ -3255,7 +3247,6 @@ moytul
 moytuleen
 mozilla
 mu
-mu ngi fi
 mucc
 muhammad
 muhammadu
@@ -3891,6 +3882,7 @@ palastin
 panamaa
 pane
 paraguwaay
+paree
 parlamaa
 parlkaay
 parlu
@@ -3965,6 +3957,7 @@ pourcent
 primitive
 protestant
 proxy
+présentel
 pullaar
 pulloox
 puso
@@ -4145,7 +4138,7 @@ safu
 sag
 saggane
 sago
-saint lucia
+saint
 sakk
 sakkal
 sakkan
@@ -4154,6 +4147,7 @@ sakke
 sakkee
 sakkoo
 sakku
+salaam
 salaat
 salacel
 sali
@@ -4185,7 +4179,7 @@ sampal
 sampu
 sampul
 samwie
-san marino
+san
 sana
 sanam
 sanc
@@ -4291,7 +4285,7 @@ seedes
 seedey
 seen
 seeni
-seent eleen
+seent
 seentu
 seenu
 seenub
@@ -4409,15 +4403,14 @@ simili
 simmeeku
 simo
 sinayi
-sinemaa bi
+sinemaa
 sineyaar
 singapoor
 sipar
 sipeer
 sippar
-siraa leyoon
+siraa
 siri
-siri laanka
 sirus
 sisera
 sistem
@@ -4506,7 +4499,6 @@ soxore
 span
 strong
 su
-su la neexee
 suba
 subhaanahu
 substence
@@ -4551,6 +4543,7 @@ suufeel
 suufi
 suufu
 suufus
+suukër
 suul
 suuna
 suur
@@ -4725,7 +4718,7 @@ tase
 tasee
 task
 taskati
-taskatu xabaar
+taskatu
 tasoon
 tatay
 taw
@@ -5137,7 +5130,7 @@ wara
 waral
 waraloon
 warangiku
-warapuló mi
+warapuló
 warburg
 ware
 warga
@@ -5194,7 +5187,6 @@ waxyu
 waxyuy
 wayndare
 wañi
-wañi ñi i
 waññ
 we
 wecc
@@ -5402,7 +5394,6 @@ xalaatu
 xalaatub
 xalam
 xale
-xale bu góor
 xalelu
 xaliilee
 xall
@@ -5586,7 +5577,7 @@ xutbakat
 xuus
 xuux
 xéewal
-xéj na
+xéj
 xëcc
 xëccoon
 xërëm
@@ -5736,7 +5727,6 @@ yengatu
 yengoom
 yengu
 yenn
-yenn saa
 yepp
 yerbowam
 yere
@@ -5944,12 +5934,9 @@ yónni
 ñaan
 ñaanal
 ñaar
-ñaar fukk
-ñaar fukk ak benn
 ñaare
 ñaareel
 ñaareelu
-ñaareelu xareb àdduna
 ñaari
 ñaat
 ñaata
@@ -5981,7 +5968,6 @@ yónni
 ñeneen
 ñenn
 ñent
-ñent fukk
 ñepp
 ñett
 ñetteelu
@@ -5997,7 +5983,6 @@ yónni
 ñombar
 ñonal
 ñoo
-ñoo ko bokk
 ñoom
 ñooy
 ñooñu

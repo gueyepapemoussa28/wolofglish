@@ -26,6 +26,7 @@ const BARREAUX = '  "premiers-mots"  Il ne parle pas anglais. Pas un mot.\n     
 const { demanderJson, MESSAGE_QUOTA } = require("../lib/gemini");
 const { decrireLexique, amorcerEcoute, corrigerWolof } = require("../lib/lexique");
 const { decrireTransparents } = require("../lib/transparents");
+const { decrireCours, choisir } = require("../lib/cours");
 const { corriger } = require("../lib/prononcer");
 
 // Repli historique : Hugging Face ne sert aucun modèle wolof, mais reste
@@ -361,6 +362,7 @@ const FORMAT_JSON = `Réponds UNIQUEMENT par un objet JSON valide, sans texte au
   "avancee": <0, 1, 2 ou 3 : où il en est dans cet objectif>,
   "profil": {
     "niveau": "premiers-mots | debutant | debrouille | intermediaire | alaise",
+    "cours": "<le titre EXACT du cours que vous faites ; change-le seulement quand le précédent est acquis>",
     "fautes": ["<ses fautes récurrentes, forme fautive puis forme juste>"],
     "acquis": ["<les structures qu'il produit désormais sans erreur>"]
   }
@@ -423,6 +425,7 @@ function decrireProfil(profil) {
 
   const lignes = ["SON PROFIL, tel que tu l'as noté jusqu'ici :"];
   lignes.push("- Niveau estimé : " + (profil.niveau || "inconnu"));
+  if (profil.cours) lignes.push("- Cours en cours : " + profil.cours);
 
   const fautes = Array.isArray(profil.fautes) ? profil.fautes.slice(0, 6) : [];
   const acquis = Array.isArray(profil.acquis) ? profil.acquis.slice(0, 6) : [];
@@ -444,14 +447,26 @@ function decrireProfil(profil) {
 // L'objectif de séance ne survit que s'il revient au modèle à chaque tour :
 // sans cela, il en réinvente un, et l'apprenant a l'impression de tourner
 // en rond alors qu'il devrait sentir qu'il avance.
-function decrireCap(objectif, avancee, niveau) {
-  const niveauBas = !niveau || niveau === "premiers-mots" || niveau === "debutant";
+function decrireCap(objectif, avancee, niveau, cours) {
+  // Le laïus sur les mots transparents n'a de sens que sans cours : dès qu'un
+  // cours existe, c'est lui qui donne le cap, sinon les deux se disputent la
+  // séance et l'apprenant sent le flottement.
+  const niveauBas =
+    !cours && (!niveau || niveau === "premiers-mots" || niveau === "debutant");
   if (!objectif) {
     const base =
       "LE CAP : aucun objectif n'est encore fixé. Écoute-le, puis annonce-lui " +
       "en une phrase de wolof ce que vous allez travailler aujourd'hui, tiré " +
       "de ce qu'il vient de te dire. Mets-le dans \"objectif\" et mets 0 dans " +
       '"avancee".';
+
+    if (cours) {
+      return (
+        base +
+        "\n\nMAIS L'OBJECTIF EST DÉJÀ ÉCRIT : c'est le but du cours que vous " +
+        'faites. Recopie-le tel quel dans "objectif" :\n  ' + cours.objectif
+      );
+    }
 
     if (niveauBas) {
       return (
@@ -604,7 +619,8 @@ async function interrogerGemini(parts, historique, profil, cap, ouverture) {
       decrireLexique(),
       decrireTransparents(profil && profil.niveau),
       decrireProfil(profil),
-      decrireCap(cap && cap.objectif, cap && cap.avancee, profil && profil.niveau),
+      decrireCours(profil),
+      decrireCap(cap && cap.objectif, cap && cap.avancee, profil && profil.niveau, choisir(profil)),
       amorcerEcoute(motsDejaEmployes(historique)),
       FORMAT_JSON,
     ]
