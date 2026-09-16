@@ -37,6 +37,10 @@ Sant Yalla | Rendre grâce à Dieu | Thank God | en réponse à « comment vas-t
 `;
 
 const CONSIGNES = `
+# ---- relevé par Moussa le 16/09/2026 ----
+Pour traduire « I'm [nom] », dis « [nom] laa tudd » ou « man la [nom] ». La forme courte « [nom] laa » passe aussi en conversation.
+Pour demander le nom de quelqu'un, dis « Noo tudd ? » ou « Naka nga tudd ? ». Jamais « Na nga tudd ».
+
 # ─────────────────────────────────────────────────────────────────────
 # TES CONSIGNES AU COACH
 # Écris ici ce que tu veux qu'il fasse ou cesse de faire.
@@ -66,6 +70,7 @@ waxal ko       | waxat ko
 dama dem ci liggéey | damay dem liggéey yi
 bougg naa      | bëgg naa
 mena wakh      | mënn a wax
+na nga tudd    | noo tudd       | « Naka nga tudd » est juste aussi ; « na nga tudd » ne l'est pas
 
 # ---- ajoute les tiennes en dessous ----
 
