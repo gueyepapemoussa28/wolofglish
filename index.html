@@ -2130,10 +2130,84 @@
     btnVoix.textContent = voixActive ? "🔊" : "🔇";
     btnVoix.classList.toggle("actif", voixActive);
 
+    /* ==================================================================
+       13. LE COACH OUVRE
+       ================================================================== */
+
+    // Un écran d'accueil qui attend ne dit rien de ce que l'app sait faire.
+    // Alors c'est le coach qui parle le premier : il salue, il pose une
+    // question, et la conversation a déjà commencé quand on arrive.
+    //
+    // Les navigateurs interdisent de jouer un son avant que l'utilisateur
+    // n'ait touché l'écran. On affiche donc toujours le texte, et la voix
+    // part si elle le peut — sinon le bouton « Écouter » reste là, et le
+    // premier appui sur le micro la débloquera pour la suite.
+    function ouvrirLaSeance() {
+      if (conversation.length > 0) return;
+
+      dire("Coach bi dafay ñëw…");
+
+      fetch(API_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ouverture: true, historique: [], profil: profil, cap: capEnCours() })
+      })
+        .then(function (reponse) {
+          if (!reponse.ok) throw new Error("ouverture refusée");
+          return reponse.json();
+        })
+        .then(function (donnees) {
+          if (!donnees || !donnees.coach || conversation.length > 0) return;
+
+          accueil.hidden = true;
+
+          var tourCoach = {
+            role: "coach",
+            coach: donnees.coach,
+            prononciation: donnees.prononciation || donnees.coach,
+            anglais: donnees.anglais || "",
+            anglaisSon: donnees.anglaisSon || "",
+            anglaisSens: donnees.anglaisSens || "",
+            nuance: donnees.nuance || "",
+            theme: donnees.theme || "",
+            objectif: donnees.objectif || "",
+            avancee: typeof donnees.avancee === "number" ? donnees.avancee : 0
+          };
+          conversation.push(tourCoach);
+          var bloc = afficherCoach(tourCoach);
+
+          if (donnees.profil) {
+            profil = donnees.profil;
+            sauverProfil();
+            afficherNiveau();
+          }
+
+          sauver();
+          afficherTrame();
+          descendre();
+          dire("Wax ma ci wolof");
+
+          if (voixActive) {
+            var signal = bloc && bloc.signalVoix;
+            if (signal) signal.hidden = false;
+            var masquer = function () { if (signal) signal.hidden = true; };
+            var promesse = chargerVoix(tourCoach.coach, "wolof", tourCoach.prononciation);
+            promesse.then(masquer, masquer);
+            direWolof(tourCoach.coach, tourCoach.prononciation, masquer, promesse);
+          }
+        })
+        .catch(function () {
+          // L'ouverture est un confort, pas une étape : si elle échoue,
+          // l'accueil habituel reste affiché et rien n'est bloqué.
+          dire("Wax ma ci wolof");
+        });
+    }
+
     afficherNiveau();
     afficherTrame();
     setEtat("repos");
     redessiner();
+    ouvrirLaSeance();
   })();
   </script>
 </body>

@@ -537,6 +537,22 @@ function decrireCap(objectif, avancee, niveau) {
   ].join("\n");
 }
 
+// Ce qu'on dit au coach quand personne ne lui a encore parlé.
+const AMORCE_OUVERTURE = `Personne ne t'a encore rien dit : c'est TOI qui ouvres.
+
+Il vient d'ouvrir l'application. Salue-le en wolof et pose-lui UNE question,
+courte, qui l'invite à parler de lui. Rien d'autre. Pas de programme annoncé,
+pas de liste de ce que vous allez faire — une salutation et une question.
+
+Si son profil est vide, tu ne sais rien de lui : demande-lui simplement
+quelque chose de simple, son nom ou ce qu'il fait.
+
+Si son profil est rempli, tu le connais déjà : reprends le fil là où vous
+l'aviez laissé, en une phrase, comme quelqu'un qui retrouve un ami.
+
+Laisse "wolof" VIDE : il n'a rien dit. Laisse "anglais" vide aussi — on ne
+donne pas une phrase à répéter avant même d'avoir entendu sa voix.`;
+
 // Les mots wolof qu'il a déjà employés sont ceux que le modèle massacre le
 // plus : rares, propres à lui, absents des corpus. On les relit dans
 // l'historique pour les lui souffler avant la prochaine écoute.
@@ -590,7 +606,7 @@ function extraireReponse(analyse) {
 
 // Un seul appel : Gemini écoute le wolof et répond en coach.
 // Whisper ne connaît pas le wolof — Gemini, si.
-async function interrogerGemini(parts, historique, profil, cap) {
+async function interrogerGemini(parts, historique, profil, cap, ouverture) {
   const resultat = await demanderJson(
     [
       CONSIGNE_COACH,
@@ -612,7 +628,8 @@ async function interrogerGemini(parts, historique, profil, cap) {
 
   const analyse = extraireReponse(resultat.donnees);
 
-  if (!analyse.wolof) {
+  // En ouverture il n'a rien dit : l'absence de transcription est normale.
+  if (!analyse.wolof && !ouverture) {
     return { ok: false, audioVide: true, details: "Aucune parole détectée." };
   }
   return { ok: true, ...analyse };
@@ -623,8 +640,50 @@ module.exports = async function handler(req, res) {
     return res.status(405).json({ error: "Méthode non autorisée, utilise POST." });
   }
 
-  const { audioBase64, mimeType, historique, profil, rejete, corrige, cap } =
+  const { audioBase64, mimeType, historique, profil, rejete, corrige, cap, ouverture } =
       req.body || {};
+
+  // L'app ouvre en conversation : le coach salue et pose sa question avant
+  // qu'on lui ait rien dit. Un écran d'accueil qui attend ne dit rien de ce
+  // que l'app sait faire ; une voix qui parle, si.
+  if (ouverture) {
+    try {
+      const echange = await interrogerGemini(
+        [{ text: AMORCE_OUVERTURE }],
+        historique,
+        profil,
+        cap,
+        true
+      );
+
+      if (!echange.ok) {
+        return res.status(echange.quotaAtteint ? 429 : 502).json({
+          error: echange.quotaAtteint ? "Quota Gemini atteint" : "Le coach n'a pas pu ouvrir",
+          details: String(echange.quotaAtteint ? MESSAGE_QUOTA : echange.details || "").slice(0, 300),
+        });
+      }
+
+      return res.status(200).json({
+        wolof: "",
+        coach: echange.coach,
+        prononciation: echange.prononciation || echange.coach,
+        anglais: echange.anglais,
+        anglaisSon: echange.anglaisSon,
+        anglaisSens: echange.anglaisSens,
+        nuance: echange.nuance,
+        theme: echange.theme,
+        objectif: echange.objectif,
+        avancee: echange.avancee,
+        doute: false,
+        hypotheses: [],
+        profil: echange.profil,
+      });
+    } catch (err) {
+      console.error("Erreur ouverture Wolofglish :", err);
+      return res.status(500).json({ error: "Erreur serveur", details: (err && err.message) || "" });
+    }
+  }
+
   if (!audioBase64) {
     return res.status(400).json({ error: "Champ 'audioBase64' manquant dans le corps de la requête." });
   }
