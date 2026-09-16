@@ -251,6 +251,141 @@
       opacity: 0.8;
     }
 
+    .trame:hover { filter: brightness(1.12); }
+
+    .trame-chevron {
+      flex: none;
+      font-size: 19px;
+      opacity: 0.55;
+      line-height: 1;
+    }
+
+    /* ---------- Le panneau des cours ---------- */
+    .voile {
+      position: absolute;
+      inset: 0;
+      background: rgba(8, 13, 19, 0.66);
+      z-index: 20;
+      animation: fondu 0.2s ease both;
+    }
+
+    @keyframes fondu { from { opacity: 0; } to { opacity: 1; } }
+
+    .panneau {
+      position: absolute;
+      left: 0; right: 0; bottom: 0;
+      z-index: 21;
+      max-height: 78%;
+      display: flex;
+      flex-direction: column;
+      background: var(--bg-soft);
+      border-top: 1px solid var(--card-border);
+      border-radius: 22px 22px 0 0;
+      padding: 18px 16px calc(20px + env(safe-area-inset-bottom));
+      animation: monte 0.26s cubic-bezier(0.22, 1, 0.36, 1) both;
+    }
+
+    @keyframes monte { from { transform: translateY(100%); } to { transform: translateY(0); } }
+
+    .panneau-tete {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 14px;
+    }
+
+    .panneau-titre { margin: 0; font-size: 19px; font-weight: 700; }
+
+    .panneau-note { margin: 3px 0 0; font-size: 13px; color: var(--text-dim); }
+
+    .panneau-fermer {
+      flex: none;
+      width: 32px; height: 32px;
+      border-radius: 50%;
+      border: 1px solid var(--card-border);
+      background: none;
+      color: var(--text-dim);
+      font-size: 14px;
+      cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    .liste-cours {
+      flex: 1;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 9px;
+    }
+
+    .cours {
+      font: inherit;
+      text-align: left;
+      background: var(--card);
+      border: 1px solid var(--card-border);
+      border-radius: 14px;
+      padding: 14px 15px;
+      color: var(--text);
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+      transition: border-color 0.18s, transform 0.14s;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    .cours:active { transform: scale(0.99); }
+    .cours.encours { border-color: var(--accent); background: var(--accent-soft); }
+
+    .cours-titre { font-size: 16px; font-weight: 700; line-height: 1.3; }
+
+    .cours-but { font-size: 13.5px; color: var(--text-dim); line-height: 1.45; }
+
+    .cours-bas {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-top: 2px;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      color: var(--text-dim);
+    }
+
+    .cours-marque {
+      color: var(--accent);
+      background: var(--accent-soft);
+      border-radius: 5px;
+      padding: 2px 7px;
+    }
+
+    .cours-vide {
+      text-align: center;
+      color: var(--text-dim);
+      font-size: 14px;
+      padding: 26px 10px;
+      line-height: 1.6;
+    }
+
+    .panneau-pied {
+      margin: 13px 0 0;
+      font-size: 12.5px;
+      color: var(--text-dim);
+      text-align: center;
+    }
+
+    .chemin {
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      font-size: 12px;
+      background: var(--card);
+      border: 1px solid var(--card-border);
+      border-radius: 5px;
+      padding: 1px 6px;
+    }
+
     /* ---------- Fil de conversation ---------- */
     #fil {
       flex: 1;
@@ -801,14 +936,31 @@
       </div>
     </header>
 
-    <div id="trame" class="trame" hidden>
+    <button id="trame" class="trame" hidden type="button" aria-label="Voir les cours">
       <span class="trame-puce"></span>
       <span class="trame-corps">
         <span id="trameObjectif" class="trame-objectif"></span>
         <span id="trameTexte" class="trame-sujet"></span>
       </span>
       <span id="tramePas" class="trame-pas"></span>
-    </div>
+      <span class="trame-chevron">›</span>
+    </button>
+
+    <div id="voile" class="voile" hidden></div>
+
+    <section id="panneau" class="panneau" hidden aria-label="Tes cours">
+      <div class="panneau-tete">
+        <div>
+          <h2 class="panneau-titre">Cours yi</h2>
+          <p class="panneau-note">Cours bi nga tànn mooy trame séance bi</p>
+        </div>
+        <button id="fermerPanneau" class="panneau-fermer" type="button" aria-label="Fermer">✕</button>
+      </div>
+      <div id="listeCours" class="liste-cours"></div>
+      <p class="panneau-pied">
+        Ajoute les tiens dans <span class="chemin">data/cours.js</span> sur GitHub.
+      </p>
+    </section>
 
     <main id="fil">
       <div class="accueil" id="accueil">
@@ -866,6 +1018,7 @@
     var API_URL = API_BASE + "/api/translate";
     var API_PRONONCIATION = API_BASE + "/api/prononciation";
     var API_VOIX = API_BASE + "/api/voix";
+    var API_COURS = "/api/cours";
 
     var MAX_DUREE_MS = 45000;   // arrêt automatique de l'enregistrement
     var TAUX_CIBLE = 16000;     // fréquence native des modèles de parole
@@ -896,6 +1049,10 @@
     var saisie = document.getElementById("saisie");
     var champ = document.getElementById("champ");
     var envoi = document.getElementById("envoi");
+    var panneau = document.getElementById("panneau");
+    var voile = document.getElementById("voile");
+    var listeCours = document.getElementById("listeCours");
+    var fermerPanneau = document.getElementById("fermerPanneau");
 
     /* ==================================================================
        3. ÉTAT
@@ -987,10 +1144,12 @@
         }
       }
 
-      trame.hidden = !objectif && !sujet;
-      trameObjectif.textContent = objectif || sujet || "";
+      // La bannière est aussi la porte vers les cours : elle reste visible
+      // même sans objectif, sinon on ne peut pas en choisir un.
+      trame.hidden = false;
+      trameObjectif.textContent = objectif || sujet || "Cours yi";
       // Quand il n'y a pas encore d'objectif, le sujet monte à sa place.
-      trameTexte.textContent = objectif ? sujet : "";
+      trameTexte.textContent = objectif ? sujet : (sujet ? "" : "Tànnal cours bi nga bëgg");
       trameTexte.hidden = !trameTexte.textContent;
 
       // Quatre pas : découvrir, essayer, y arriver, savoir faire.
@@ -2189,6 +2348,114 @@
 
     btnVoix.textContent = voixActive ? "🔊" : "🔇";
     btnVoix.classList.toggle("actif", voixActive);
+
+    /* ==================================================================
+       13. LES COURS
+       ================================================================== */
+
+    // Le moteur savait suivre un cours ; il manquait l'endroit où le choisir.
+    // Sans cette vue, la matière que Moussa écrit reste invisible pour celui
+    // qui apprend.
+    var coursConnus = null;
+
+    var ETIQUETTES = {
+      "premiers-mots": "🌱 Premiers mots",
+      debutant: "🌿 Débutant",
+      debrouille: "🌳 Je me débrouille",
+      intermediaire: "🏞 Intermédiaire",
+      alaise: "🏔 À l'aise"
+    };
+
+    function ouvrirCours() {
+      panneau.hidden = false;
+      voile.hidden = false;
+      dessinerCours();
+
+      if (coursConnus) return;
+      fetch(API_COURS)
+        .then(function (r) { return r.ok ? r.json() : null; })
+        .then(function (d) {
+          coursConnus = (d && Array.isArray(d.cours)) ? d.cours : [];
+          dessinerCours();
+        })
+        .catch(function () {
+          coursConnus = [];
+          dessinerCours();
+        });
+    }
+
+    function fermerCours() {
+      panneau.hidden = true;
+      voile.hidden = true;
+    }
+
+    function dessinerCours() {
+      listeCours.textContent = "";
+
+      if (coursConnus === null) {
+        listeCours.appendChild(creer("p", "cours-vide", "Un instant…"));
+        return;
+      }
+      if (coursConnus.length === 0) {
+        var vide = creer("p", "cours-vide");
+        vide.appendChild(document.createTextNode("Aucun cours pour l'instant."));
+        vide.appendChild(document.createElement("br"));
+        vide.appendChild(document.createTextNode("Écris le premier, et Lia le suivra."));
+        listeCours.appendChild(vide);
+        return;
+      }
+
+      var actuel = profil && profil.cours;
+      var finis = (profil && Array.isArray(profil.coursFinis)) ? profil.coursFinis : [];
+
+      coursConnus.forEach(function (cours) {
+        var carte = creer("button", "cours");
+        carte.type = "button";
+        var enCours = actuel && actuel.toLowerCase() === cours.titre.toLowerCase();
+        if (enCours) carte.classList.add("encours");
+
+        carte.appendChild(creer("span", "cours-titre", cours.titre));
+        if (cours.objectif) carte.appendChild(creer("span", "cours-but", cours.objectif));
+
+        var bas = creer("div", "cours-bas");
+        if (enCours) bas.appendChild(creer("span", "cours-marque", "en cours"));
+        else if (finis.indexOf(cours.titre) !== -1) bas.appendChild(creer("span", "cours-marque", "✓ vu"));
+        if (cours.niveau) bas.appendChild(creer("span", null, ETIQUETTES[cours.niveau] || cours.niveau));
+        if (cours.etapes) bas.appendChild(creer("span", null, cours.etapes + " étapes"));
+        carte.appendChild(bas);
+
+        carte.addEventListener("click", function () { choisirCours(cours); });
+        listeCours.appendChild(carte);
+      });
+    }
+
+    // Changer de cours change la direction de la séance : on le dit à Lia et
+    // on la laisse ouvrir dessus, plutôt que de basculer en silence.
+    function choisirCours(cours) {
+      fermerCours();
+      if (etat !== "repos") return;
+
+      var precedent = profil && profil.cours;
+      profil = profil || {};
+      if (precedent && precedent !== cours.titre) {
+        var finis = Array.isArray(profil.coursFinis) ? profil.coursFinis : [];
+        if (finis.indexOf(precedent) === -1) finis.push(precedent);
+        profil.coursFinis = finis.slice(-20);
+      }
+      profil.cours = cours.titre;
+      sauverProfil();
+      afficherNiveau();
+
+      debloquerVoix();
+      envoyerTexte("Ñu tambali cours bi : « " + cours.titre + " ».");
+    }
+
+    trame.addEventListener("click", ouvrirCours);
+    voile.addEventListener("click", fermerCours);
+    fermerPanneau.addEventListener("click", fermerCours);
+    document.addEventListener("keydown", function (evt) {
+      if (evt.key === "Escape" && !panneau.hidden) fermerCours();
+    });
 
     /* ==================================================================
        13. ÉCRIRE À LIA
