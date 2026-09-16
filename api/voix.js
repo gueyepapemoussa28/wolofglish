@@ -60,13 +60,34 @@ module.exports = async function handler(req, res) {
         source = "gemini:" + (resultat.modele || "?");
       }
     } else {
+      // Une voix clonée change la donne : elle porte un vrai timbre sénégalais,
+      // répond en quelques centaines de millisecondes et ne dépend d'aucun
+      // quota Google. Quand ELEVENLABS_VOICE_WOLOF est renseignée, elle passe
+      // donc devant Gemini. Sans elle, rien ne change.
+      const voixClonee = process.env.ELEVENLABS_VOICE_WOLOF;
+
+      if (voixClonee && contenuSecours) {
+        const affine = corriger(contenuSecours);
+        if (affine.corriges.length) {
+          motsCorriges = affine.corriges.slice(0, 12).join(" ");
+        }
+        resultat = await elevenlabs.synthetiser(affine.texte, "fr", voixClonee);
+        source = "voix-clonee";
+
+        if (!resultat.ok) {
+          raisonRepli = String(resultat.details || "inconnue").slice(0, 200);
+        }
+      }
+
       // Gemini est la seule voix qui prononce réellement le wolof.
-      resultat = await voixGemini.synthetiser(
-        contenu,
-        CONSIGNE_WOLOF,
-        process.env.GEMINI_VOIX || "Kore"
-      );
-      source = "gemini:" + (resultat.modele || "?");
+      if (!resultat || !resultat.ok) {
+        resultat = await voixGemini.synthetiser(
+          contenu,
+          CONSIGNE_WOLOF,
+          process.env.GEMINI_VOIX || "Kore"
+        );
+        source = "gemini:" + (resultat.modele || "?");
+      }
 
       // S'il flanche — son quota est bien plus serré que celui du texte —
       // ElevenLabs lit l'orthographe réécrite à la française. Moins juste
@@ -74,7 +95,7 @@ module.exports = async function handler(req, res) {
       // du navigateur, qui était le repli précédent.
       if (!resultat.ok && contenuSecours) {
         // On garde la raison de l'échec : sans elle, le repli masque la panne.
-        raisonRepli = String(resultat.details || "inconnue").slice(0, 200);
+        if (!raisonRepli) raisonRepli = String(resultat.details || "inconnue").slice(0, 200);
 
         // Gemini lit le vrai wolof ; ElevenLabs, non — il lit ce qu'on lui
         // écrit. C'est donc ici, et seulement ici, qu'on applique le
