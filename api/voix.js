@@ -23,6 +23,16 @@ const CONSIGNE_WOLOF =
   "Lis ceci en wolof d'une voix calme, posée et naturelle, comme quelqu'un qui " +
   "parle à un ami. Ton neutre, sans exagération, sans enthousiasme forcé";
 
+// Dit ce que la réécriture a fait : les mots venus du dictionnaire de Moussa,
+// puis le nombre traité par les règles de l'alphabet. Sans ce retour, on ne
+// sait pas si une ligne ajoutée au dictionnaire a pris effet.
+function resumerCorrections(affine) {
+  const bouts = [];
+  if (affine.corriges.length) bouts.push("dico: " + affine.corriges.slice(0, 10).join(" "));
+  if (affine.regles.length) bouts.push("regles: " + affine.regles.length);
+  return bouts.join(" | ");
+}
+
 module.exports = async function handler(req, res) {
   if (req.method !== "POST") {
     return res.status(405).json({ error: "Méthode non autorisée, utilise POST." });
@@ -68,9 +78,7 @@ module.exports = async function handler(req, res) {
 
       if (voixClonee && contenuSecours) {
         const affine = corriger(contenuSecours);
-        if (affine.corriges.length) {
-          motsCorriges = affine.corriges.slice(0, 12).join(" ");
-        }
+        motsCorriges = resumerCorrections(affine);
         resultat = await elevenlabs.synthetiser(affine.texte, "fr", voixClonee);
         source = "voix-clonee";
 
@@ -102,9 +110,7 @@ module.exports = async function handler(req, res) {
         // dictionnaire de prononciation : il passe après la réécriture du
         // modèle et impose les corrections que Moussa a documentées.
         const affine = corriger(contenuSecours);
-        if (affine.corriges.length) {
-          motsCorriges = affine.corriges.slice(0, 12).join(" ");
-        }
+        motsCorriges = resumerCorrections(affine);
 
         // Le wolof réécrit se lit avec une phonétique française : sans ce
         // forçage, le moteur le lit à l'anglaise et rend du charabia.
