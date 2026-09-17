@@ -1,0 +1,605 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="Test à l'aveugle entre deux synthèses vocales pour le wolof de Wolofglish.">
+<style>
+  :root { color-scheme: light dark; padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px); }
+  body { margin: 0; }
+  img { max-width: 100%; }
+  [hidden] { display: none !important; }
+</style>
+<title>Quelle voix pour Galsen</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=Instrument+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
+
+<style>
+  :root {
+    --fond:     #F6F5F2;
+    --surface:  #FFFFFF;
+    --creux:    #EFEDE8;
+    --encre:    #14181E;
+    --doux:     #676D78;
+    --trait:    #DEDBD4;
+    --signal:   #0E7C63;
+    --signal-f: rgba(14, 124, 99, 0.10);
+    --lourd:    #A8651B;
+    --lourd-f:  rgba(168, 101, 27, 0.10);
+    --ombre:    0 1px 2px rgba(20, 24, 30, 0.05), 0 8px 24px -12px rgba(20, 24, 30, 0.18);
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --fond:     #101317;
+      --surface:  #191D23;
+      --creux:    #21262D;
+      --encre:    #E8E6E1;
+      --doux:     #98A0AC;
+      --trait:    #2A3038;
+      --signal:   #3FBE9C;
+      --signal-f: rgba(63, 190, 156, 0.12);
+      --lourd:    #DFA155;
+      --lourd-f:  rgba(223, 161, 85, 0.12);
+      --ombre:    0 1px 2px rgba(0, 0, 0, 0.4), 0 8px 24px -12px rgba(0, 0, 0, 0.7);
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --fond:     #101317;
+    --surface:  #191D23;
+    --creux:    #21262D;
+    --encre:    #E8E6E1;
+    --doux:     #98A0AC;
+    --trait:    #2A3038;
+    --signal:   #3FBE9C;
+    --signal-f: rgba(63, 190, 156, 0.12);
+    --lourd:    #DFA155;
+    --lourd-f:  rgba(223, 161, 85, 0.12);
+    --ombre:    0 1px 2px rgba(0, 0, 0, 0.4), 0 8px 24px -12px rgba(0, 0, 0, 0.7);
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--fond);
+    color: var(--encre);
+    font-family: "Instrument Sans", system-ui, -apple-system, sans-serif;
+    font-size: 16px;
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .page {
+    max-width: 760px;
+    margin: 0 auto;
+    padding-inline: 20px;
+    padding-block: 40px 72px;
+    display: flex;
+    flex-direction: column;
+    gap: 44px;
+  }
+
+  /* ---------- en-tête ---------- */
+
+  .chapeau { display: flex; flex-direction: column; gap: 14px; }
+
+  .oeil {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--doux);
+  }
+
+  h1 {
+    font-family: "Bricolage Grotesque", system-ui, sans-serif;
+    font-optical-sizing: auto;
+    font-weight: 800;
+    font-size: clamp(30px, 7vw, 46px);
+    line-height: 1.04;
+    letter-spacing: -0.025em;
+    margin: 0;
+    text-wrap: balance;
+  }
+
+  .amorce {
+    font-size: 17px;
+    color: var(--doux);
+    margin: 0;
+    max-width: 58ch;
+  }
+
+  .amorce strong { color: var(--encre); font-weight: 600; }
+
+  /* ---------- la mesure de latence ---------- */
+
+  .mesure {
+    background: var(--surface);
+    border: 1px solid var(--trait);
+    border-radius: 14px;
+    padding: 22px;
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+    box-shadow: var(--ombre);
+  }
+
+  .mesure-titre {
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--doux);
+  }
+
+  .barre-ligne { display: flex; flex-direction: column; gap: 7px; }
+
+  .barre-tete {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 12px;
+    font-size: 14px;
+    font-weight: 600;
+  }
+
+  .barre-tete span:last-child {
+    font-family: "JetBrains Mono", ui-monospace, monospace;
+    font-variant-numeric: tabular-nums;
+    font-size: 13px;
+  }
+
+  .rail { height: 12px; border-radius: 6px; background: var(--creux); overflow: hidden; }
+  .jauge { height: 100%; border-radius: 6px; }
+  .jauge.lent   { background: var(--lourd); width: 100%; }
+  .jauge.rapide { background: var(--signal); width: 5.2%; min-width: 8px; }
+
+  .verdict-mesure {
+    font-size: 14px;
+    color: var(--doux);
+    padding-top: 4px;
+    border-top: 1px solid var(--trait);
+  }
+  .verdict-mesure b { color: var(--signal); font-weight: 600; }
+
+  /* ---------- les essais à l'aveugle ---------- */
+
+  .section-tete { display: flex; flex-direction: column; gap: 8px; }
+
+  h2 {
+    font-family: "Bricolage Grotesque", system-ui, sans-serif;
+    font-weight: 700;
+    font-size: 25px;
+    letter-spacing: -0.015em;
+    margin: 0;
+  }
+
+  .section-tete p { margin: 0; color: var(--doux); font-size: 15px; max-width: 58ch; }
+
+  .essais { display: flex; flex-direction: column; gap: 20px; margin-top: 24px; }
+
+  .essai {
+    background: var(--surface);
+    border: 1px solid var(--trait);
+    border-radius: 14px;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    box-shadow: var(--ombre);
+  }
+
+  .cible {
+    font-family: "Bricolage Grotesque", system-ui, sans-serif;
+    font-weight: 700;
+    font-size: 21px;
+    line-height: 1.3;
+    letter-spacing: -0.012em;
+    margin: 0;
+    text-wrap: balance;
+  }
+
+  .cible-note { font-size: 13px; color: var(--doux); margin: 4px 0 0; }
+
+  .duo { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+  @media (max-width: 460px) { .duo { grid-template-columns: 1fr; } }
+
+  .pan {
+    border: 1px solid var(--trait);
+    border-radius: 11px;
+    padding: 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    background: var(--fond);
+    transition: border-color 0.2s ease, background 0.2s ease;
+  }
+
+  .pan.joue { border-color: var(--signal); background: var(--signal-f); }
+
+  .pan-nom {
+    font-family: "JetBrains Mono", ui-monospace, monospace;
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.1em;
+    color: var(--doux);
+    text-transform: uppercase;
+  }
+
+  .lire {
+    font: inherit;
+    font-size: 15px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    width: 100%;
+    padding: 11px 13px;
+    border-radius: 9px;
+    border: 1px solid var(--trait);
+    background: var(--surface);
+    color: var(--encre);
+    cursor: pointer;
+    transition: transform 0.12s ease, border-color 0.2s ease;
+  }
+
+  .lire:hover { border-color: var(--encre); }
+  .lire:active { transform: scale(0.98); }
+  .lire:focus-visible { outline: 2px solid var(--signal); outline-offset: 2px; }
+
+  .tete-lecture {
+    width: 22px; height: 22px;
+    border-radius: 50%;
+    background: var(--encre);
+    color: var(--surface);
+    display: grid;
+    place-items: center;
+    font-size: 9px;
+    flex: none;
+  }
+
+  .pan.joue .tete-lecture { background: var(--signal); }
+
+  /* ---------- le vote ---------- */
+
+  .vote { display: flex; flex-direction: column; gap: 9px; }
+
+  .vote-question { font-size: 13px; font-weight: 600; color: var(--doux); }
+
+  .vote-choix { display: flex; flex-wrap: wrap; gap: 8px; }
+
+  .bulletin {
+    font: inherit;
+    font-size: 14px;
+    font-weight: 600;
+    padding: 8px 15px;
+    border-radius: 999px;
+    border: 1px solid var(--trait);
+    background: var(--surface);
+    color: var(--encre);
+    cursor: pointer;
+    transition: all 0.16s ease;
+  }
+
+  .bulletin:hover { border-color: var(--encre); }
+  .bulletin:focus-visible { outline: 2px solid var(--signal); outline-offset: 2px; }
+  .bulletin.pris { background: var(--encre); border-color: var(--encre); color: var(--fond); }
+
+  /* ---------- la révélation ---------- */
+
+  .revele {
+    border-top: 1px solid var(--trait);
+    padding-top: 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 11px;
+  }
+
+  .fiche { display: flex; flex-direction: column; gap: 5px; }
+
+  .fiche-tete {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    flex-wrap: wrap;
+    font-size: 13px;
+    font-weight: 600;
+  }
+
+  .pastille {
+    font-family: "JetBrains Mono", ui-monospace, monospace;
+    font-size: 10px;
+    font-weight: 500;
+    letter-spacing: 0.06em;
+    padding: 3px 8px;
+    border-radius: 5px;
+  }
+
+  .pastille.lent   { background: var(--lourd-f);  color: var(--lourd); }
+  .pastille.rapide { background: var(--signal-f); color: var(--signal); }
+
+  .retour {
+    font-family: "JetBrains Mono", ui-monospace, monospace;
+    font-size: 12.5px;
+    line-height: 1.5;
+    color: var(--doux);
+    padding-left: 13px;
+    border-left: 2px solid var(--trait);
+  }
+
+  .retour b { color: var(--encre); font-weight: 500; }
+
+  /* ---------- la réécriture ---------- */
+
+  .paliers { display: flex; flex-direction: column; gap: 11px; margin-top: 22px; }
+
+  .palier {
+    background: var(--surface);
+    border: 1px solid var(--trait);
+    border-radius: 12px;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 11px;
+    box-shadow: var(--ombre);
+  }
+
+  .palier-tete {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+
+  .palier-nom { font-size: 14px; font-weight: 600; }
+
+  .envoye {
+    font-family: "JetBrains Mono", ui-monospace, monospace;
+    font-size: 13px;
+    background: var(--creux);
+    border-radius: 7px;
+    padding: 9px 11px;
+    overflow-x: auto;
+    white-space: nowrap;
+  }
+
+  /* ---------- le bilan ---------- */
+
+  .bilan {
+    background: var(--surface);
+    border: 1px solid var(--trait);
+    border-radius: 14px;
+    padding: 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    box-shadow: var(--ombre);
+  }
+
+  #bilanTexte { margin: 0; font-size: 16px; }
+  #bilanTexte b { font-weight: 600; }
+
+  .decompte {
+    display: flex;
+    gap: 22px;
+    flex-wrap: wrap;
+    font-family: "JetBrains Mono", ui-monospace, monospace;
+    font-size: 13px;
+    color: var(--doux);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .decompte b { color: var(--encre); font-weight: 500; }
+
+  .suite { display: flex; flex-direction: column; gap: 9px; margin: 0; padding: 0; list-style: none; }
+
+  .suite li {
+    display: flex;
+    gap: 11px;
+    align-items: baseline;
+    font-size: 15px;
+    padding-top: 9px;
+    border-top: 1px solid var(--trait);
+  }
+
+  .suite li span:first-child {
+    font-family: "JetBrains Mono", ui-monospace, monospace;
+    font-size: 11px;
+    color: var(--signal);
+    flex: none;
+    padding-top: 2px;
+  }
+
+  footer {
+    font-size: 13px;
+    color: var(--doux);
+    border-top: 1px solid var(--trait);
+    padding-top: 18px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { transition: none !important; animation: none !important; }
+  }
+</style>
+
+</head>
+<body>
+<div class="page">
+
+  <header class="chapeau">
+    <div class="oeil">Wolofglish · 17 septembre 2026</div>
+    <h1>Quelle voix pour Galsen</h1>
+    <p class="amorce">
+      Tu l'as dit : <strong>la prononciation wolof est bonne, c'est la voix qui ne l'est pas.</strong>
+      Or cette voix n'est pas dans le modèle — elle vient d'une empreinte qu'on peut
+      remplacer. Voici neuf versions de la même phrase. Trouve celle que tu supportes.
+    </p>
+  </header>
+
+  <section>
+    <div class="section-tete">
+      <h2>La même phrase, neuf bouches</h2>
+      <p>
+        <em>Dama bëgg jàng anglais bu baax. Naka liggéey bi ?</em><br>
+        Les six premières sortent du modèle wolof, avec une empreinte de locuteur
+        différente. Les trois suivantes prennent sa prononciation et lui changent
+        le timbre. La dernière est Google, pour comparaison.
+      </p>
+    </div>
+    <div class="paliers" id="paliers"></div>
+  </section>
+
+  <section class="bilan">
+    <p id="bilanTexte">Écoute-les, puis dis-moi laquelle tu supportes.</p>
+    <ul class="suite" id="suite" hidden></ul>
+  </section>
+
+  <footer>
+    Le modèle devient instable quand on change sa voix : deux empreintes sur sept
+    (l'Écossais, l'Américain posé) l'ont fait partir en boucle cinq fois sur cinq,
+    produisant quinze secondes d'audio pour une phrase de trois. Les six retenues
+    ici sont stables. La conversion de timbre ajoute environ deux secondes.
+  </footer>
+
+</div>
+
+<script>
+  var VOIX = [
+    { nom: "Empreinte d'origine", detail: "homme américain grave — celle que tu as entendue",
+      f: "sons/voix/v-bdl.wav", ms: "810 ms", lu: "Dama bëgg jang anglais bu baax, na ko liggéeyee ?", cat: "modèle" },
+    { nom: "Voix féminine", detail: "femme américaine — prononciation exacte au test",
+      f: "sons/voix/v-slt.wav", ms: "860 ms", lu: "Dama bëgg jang angale bu baax naka liggéey bi", cat: "modèle" },
+    { nom: "Voix féminine douce", detail: "plus posée, un mot perdu en fin de phrase",
+      f: "sons/voix/v-clb.wav", ms: "680 ms", lu: "Damay bëgg jàng angale bu baax naxale gaa bi", cat: "modèle" },
+    { nom: "Voix canadienne", detail: "homme — prononciation exacte au test",
+      f: "sons/voix/v-jmk.wav", ms: "800 ms", lu: "Damay bëgg jàng angale bu baax naka liggéey bi", cat: "modèle" },
+    { nom: "Voix indienne", detail: "homme — accent non anglophone, peut-être plus proche",
+      f: "sons/voix/v-ksp.wav", ms: "900 ms", lu: "Damay bëgg jang anglais bu baax. Naka luy liggéey bi ?", cat: "modèle" },
+    { nom: "Timbre converti — Sarah", detail: "le modèle wolof, re-rendu par ElevenLabs",
+      f: "sons/voix/x-sarah.mp3", ms: "860 + 2 539 ms", lu: "", cat: "converti" },
+    { nom: "Timbre converti — Daniel", detail: "voix masculine grave et posée",
+      f: "sons/voix/x-daniel.mp3", ms: "800 + 2 166 ms", lu: "", cat: "converti" },
+    { nom: "Timbre converti — George", detail: "voix de conteur, plus chaude",
+      f: "sons/voix/x-george.mp3", ms: "800 + 1 457 ms", lu: "", cat: "converti" },
+    { nom: "Google, pour comparer", detail: "celle que tu trouves la plus raffinée",
+      f: "sons/voix/ref-gemini.wav", ms: "≈ 8 000 ms", lu: "", cat: "référence" }
+  ];
+
+  var enCours = null;
+
+  function creer(b, c, t) {
+    var el = document.createElement(b);
+    if (c) el.className = c;
+    if (t !== undefined) el.textContent = t;
+    return el;
+  }
+
+  function lire(fichier, carte, bouton) {
+    if (enCours) {
+      enCours.audio.pause();
+      enCours.carte.classList.remove("joue");
+      enCours.bouton.querySelector(".etiquette").textContent = "Écouter";
+      var meme = enCours.audio.dataset.f === fichier;
+      enCours = null;
+      if (meme) return;
+    }
+    var audio = new Audio(fichier);
+    audio.dataset.f = fichier;
+    var et = bouton.querySelector(".etiquette");
+    carte.classList.add("joue");
+    et.textContent = "En lecture…";
+    enCours = { audio: audio, carte: carte, bouton: bouton };
+    function fini() {
+      carte.classList.remove("joue");
+      et.textContent = "Écouter";
+      enCours = null;
+    }
+    audio.addEventListener("ended", fini);
+    audio.addEventListener("error", function () { et.textContent = "Lecture impossible"; fini(); });
+    audio.play().catch(fini);
+  }
+
+  function construire(v, i) {
+    var carte = creer("article", "palier");
+
+    var tete = creer("div", "palier-tete");
+    var gauche = creer("div");
+    gauche.appendChild(creer("div", "palier-nom", (i + 1) + ". " + v.nom));
+    gauche.appendChild(creer("div", "cible-note", v.detail));
+    tete.appendChild(gauche);
+
+    var b = creer("button", "lire");
+    b.style.width = "auto";
+    b.appendChild(creer("span", "tete-lecture", "▶"));
+    b.appendChild(creer("span", "etiquette", "Écouter"));
+    b.addEventListener("click", function () { lire(v.f, carte, b); });
+    tete.appendChild(b);
+    carte.appendChild(tete);
+
+    var bas = creer("div", "fiche-tete");
+    bas.appendChild(creer("span", "pastille " + (v.cat === "référence" ? "lent" : "rapide"), v.ms));
+    bas.appendChild(creer("span", "cible-note", v.cat));
+    carte.appendChild(bas);
+
+    if (v.lu) {
+      var lu = creer("div", "retour");
+      lu.appendChild(document.createTextNode("réécouté, la machine comprend "));
+      lu.appendChild(creer("b", null, "« " + v.lu + " »"));
+      carte.appendChild(lu);
+    }
+
+    var choisir = creer("button", "bulletin", "Celle-ci me va");
+    choisir.style.alignSelf = "flex-start";
+    choisir.addEventListener("click", function () { retenir(v, choisir); });
+    carte.appendChild(choisir);
+
+    return carte;
+  }
+
+  function retenir(v, bouton) {
+    document.querySelectorAll(".bulletin").forEach(function (b) { b.classList.remove("pris"); });
+    bouton.classList.add("pris");
+
+    var texte = document.getElementById("bilanTexte");
+    var suite = document.getElementById("suite");
+    var conseil;
+
+    if (v.cat === "référence") {
+      texte.innerHTML = "Tu restes sur <b>Google</b>. On ne change rien — et on continue à raccourcir les répliques.";
+      conseil = [["→", "Aucun hébergement, aucune dépense, aucune maintenance."]];
+    } else if (v.cat === "converti") {
+      texte.innerHTML = "Tu veux <b>la prononciation du modèle wolof avec un autre timbre</b>. C'est faisable, mais c'est la voie la plus lourde.";
+      conseil = [
+        ["→", "Il faut héberger le modèle wolof : 20 à 40 $ par mois, sans carte graphique."],
+        ["→", "Puis convertir chaque réplique chez ElevenLabs : deux secondes et des crédits en plus."],
+        ["→", "Total : environ trois secondes par réplique, contre huit chez Google aujourd'hui."]
+      ];
+    } else {
+      texte.innerHTML = "Tu retiens <b>" + v.nom + "</b>, directement du modèle wolof. C'est la voie la plus simple des trois.";
+      conseil = [
+        ["→", "Une seule étape, moins d'une seconde par réplique."],
+        ["→", "Reste à l'héberger : 20 à 40 $ par mois, et à surveiller les boucles."],
+        ["→", "Le timbre restera étranger — ce modèle ne sait pas cloner une voix sénégalaise."]
+      ];
+    }
+
+    suite.hidden = false;
+    suite.textContent = "";
+    conseil.forEach(function (c) {
+      var li = document.createElement("li");
+      li.appendChild(creer("span", null, c[0]));
+      li.appendChild(creer("span", null, c[1]));
+      suite.appendChild(li);
+    });
+  }
+
+  var zone = document.getElementById("paliers");
+  VOIX.forEach(function (v, i) { zone.appendChild(construire(v, i)); });
+</script>
+</body>
+</html>
